@@ -195,9 +195,9 @@ const app = express();
 app.use(bodyParser.json());
 
 const politicianIpPorts = [
-  "192.168.227.208:4000",
-  "192.168.227.208:6000",
-  "192.168.227.208:7001",
+  "localhost:4000",
+  "localhost:6000",
+  "localhost:7001",
 ];
 
 let verifiedTransactions = [];
@@ -244,7 +244,7 @@ async function getLatestBlock() {
   try {
     const blocks = await Promise.all(
       politicianIpPorts.map((ipPort) =>
-        axios.get(`http://${ipPort}/latestBlock`)
+        axios.get(`http://${ipPort}/api/blocks`)
       )
     );
     const blockDataArray = blocks.map((res) => res.data);
