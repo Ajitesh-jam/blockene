@@ -1,8 +1,7 @@
 //header of a block
 import { NO_OF_TRANSACTIONS_IN_BLOCK } from "../constants/const.js";
 
-export class BlockHeader {
-  // header of a block
+export default class BlockHeader {
   noOfTransactions;
   prevHash;
   nounce;
@@ -32,6 +31,3 @@ export class BlockHeader {
     this.noOfTransactions = _noOfTransactions;
   }
 }
-
-
-
