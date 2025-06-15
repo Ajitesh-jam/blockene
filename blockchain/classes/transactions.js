@@ -48,19 +48,3 @@ export class Transaction {
     return true;
   }
 }
-
-//mock object for testing
-export const mockTransaction = new Transaction(
-  "1",
-  "0x1234567890abcdef",
-  "0xfedcba0987654321",
-  100,
-  Date.now(),
-  sha256("0x1234567890abcdef" + "0xfedcba0987654321" + 100).toString()
-);
-
-console.log("\n\n\nMock Transaction:", mockTransaction.toString());
-console.log(
-  "\n\n\nMock Transaction verify :",
-  mockTransaction.verfiyTransaction()
-);
