@@ -1,11 +1,10 @@
 import { Block } from "../classes/block.js";
 import { BlockHeader } from "../classes/blockHeader.js";
 import { BlockData } from "../classes/blockData.js";
-import { Transaction } from "../classes/transactions.js";
 import {
   NO_OF_TRANSACTIONS_IN_BLOCK,
   FIRST_BLOCK_HASH,
-} from "../constants/const.js";
+} from "../../constants/const.js";
 
 export class Blockchain {
   constructor() {

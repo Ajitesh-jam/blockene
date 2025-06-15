@@ -1,7 +1,20 @@
+import { Transaction } from "./transactions";
+
 export class BlockData {
   transactions;
 
   constructor(_transactions) {
+    if (!Array.isArray(_transactions)) {
+      throw new Error("Transactions must be an array");
+    }
+    if (_transactions.length === 0) {
+      throw new Error("Transactions array cannot be empty");
+    }
+    for (const transaction of _transactions) {
+      if (!(transaction instanceof Transaction)) {
+        throw new Error("Each transaction must be an instance of Transaction");
+      }
+    }
     this.transactions = _transactions;
   }
   toString() {
