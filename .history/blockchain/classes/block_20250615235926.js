@@ -16,7 +16,7 @@ import { utf8ToBytes } from "ethereum-cryptography/utils.js";
 import { BlockHeader } from "./blockHeader.js";
 import { BlockData } from "./blockData.js";
 
-export class Block {
+class Block {
   header; // BlockHeader instance
   data; // BlockData instance
   merkeltree; // Merkle tree of transactions

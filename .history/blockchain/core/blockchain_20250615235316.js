@@ -1,5 +1,5 @@
 import { Block } from "../classes/block.js";
-import {BlockHeader} from "../classes/blockHeader.js";
+import BlockHeader from "../classes/blockHeader.js";
 import { BlockData } from "../classes/blockData.js";
 import { Transaction } from "../classes/transactions.js";
 import { NO_OF_TRANSACTIONS_IN_BLOCK } from "../constants/const.js";

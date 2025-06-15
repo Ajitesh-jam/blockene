@@ -10,13 +10,12 @@
 // const { BlockBodySchema } = require("./blockBodySchema");
 import { MerkleTree } from "merkletreejs";
 import { keccak256 } from "ethereum-cryptography/keccak";
-import { utf8ToBytes } from "ethereum-cryptography/utils.js";
-
+import { toUtf8Bytes } from "ethereum-cryptography/utils";
 
 import { BlockHeader } from "./blockHeader.js";
 import { BlockData } from "./blockData.js";
 
-export class Block {
+class Block {
   header; // BlockHeader instance
   data; // BlockData instance
   merkeltree; // Merkle tree of transactions
@@ -34,7 +33,7 @@ export class Block {
   makeMerkleTree() {
     const leaves = this.data
       .getTransactions()
-      .map((tx) => keccak256(utf8ToBytes(tx.toString())));
+      .map((tx) => keccak256(toUtf8Bytes(tx.toString())));
     this.merkeltree = new MerkleTree(leaves, keccak256, { sortPairs: true });
     this.hash = this.merkeltree.getRoot().toString("hex");
   }
