@@ -1,0 +1,1 @@
+export const NO_OF_TRANSACTIONS_IN_BLOCK = 10;
