@@ -1,41 +1,25 @@
-//make block of a blockchain --> merkle tree
-// const { MerkleTree } = require("merkletreejs");
-// const { keccak256 } = require("ethereum-cryptography/keccak");
-// const { toBuffer } = require("ethereum-cryptography/utils");
-// const { BlockHeader } = require("./blockHeader");
-// const { Transaction } = require("./transaction");
-// const { BlockBody } = require("./blockBody");
-// const { Block } = require("./block");
-// const { BlockHeaderSchema } = require("./blockHeaderSchema");
-// const { BlockBodySchema } = require("./blockBodySchema");
-import { MerkleTree } from "merkletreejs";
-import { keccak256 } from "ethereum-cryptography/keccak";
-import { toUtf8Bytes } from "ethereum-cryptography/utils";
-
 import { BlockHeader } from "./blockHeader.js";
 import { BlockData } from "./blockData.js";
 
-class Block {
-  header; // BlockHeader instance
-  data; // BlockData instance
-  merkeltree; // Merkle tree of transactions
-  hash;
+import { hash, buildMerkleTree } from "../utils/crypto.js";
+
+export class Block {
   constructor(_header, _data) {
     if (!(_header instanceof BlockHeader)) {
       throw new Error("Block header must be an instance of BlockHeader");
     }
-    this.header = _header;
     if (!(_data instanceof BlockData)) {
       throw new Error("Block data must be an instance of BlockData");
     }
+    this.header = _header;
     this.data = _data;
+    this.makeMerkleTree();
   }
+
   makeMerkleTree() {
-    const leaves = this.data
-      .getTransactions()
-      .map((tx) => keccak256(toUtf8Bytes(tx.toString())));
-    this.merkeltree = new MerkleTree(leaves, keccak256, { sortPairs: true });
-    this.hash = this.merkeltree.getRoot().toString("hex");
+    const transactions = this.data.getTransactions();
+    const leaves = transactions.map((tx) => hash(tx.toString()));
+    this.hash = buildMerkleTree(leaves);
   }
 
   toString() {

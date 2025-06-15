@@ -1,8 +1,11 @@
-import { Block } from "./classes/block.js";
-import { BlockHeader } from "./classes/blockHeader.js";
-import { BlockData } from "./classes/blockData.js";
-import { Transaction } from "./classes/transactions.js";
-import { NO_OF_TRANSACTIONS_IN_BLOCK } from "./constants/const.js";
+import { Block } from "../classes/block.js";
+import { BlockHeader } from "../classes/blockHeader.js";
+import { BlockData } from "../classes/blockData.js";
+import { Transaction } from "../classes/transactions.js";
+import {
+  NO_OF_TRANSACTIONS_IN_BLOCK,
+  FIRST_BLOCK_HASH,
+} from "./constants/const.js";
 
 export class Blockchain {
   constructor() {
@@ -11,7 +14,7 @@ export class Blockchain {
   }
 
   createGenesisBlock() {
-    const header = new BlockHeader(0, "0".repeat(64), 0);
+    const header = new BlockHeader(0, FIRST_BLOCK_HASH, 0);
     const data = new BlockData([]);
     const block = new Block(header, data);
     block.makeMerkleTree();
