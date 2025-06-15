@@ -1,4 +1,4 @@
-import { hash } from "../utils/crypto";
+import { hash } from "../utils/crypto.js";
 
 export class Transaction {
   constructor(_id = null, _sender, _reciever, _amount, _timestamp, _signature) {
@@ -39,8 +39,8 @@ export class Transaction {
 
     //encrypt sender + reciver + amount to generate signature
     const data = this.sender + this.receiver + this.amount;
-    const hash = hash(data);
-    if (hash !== this.signature) {
+    const hashstring = hash(data);
+    if (hashstring !== this.signature) {
       console.error("Transaction signature verification failed");
       return false;
     }

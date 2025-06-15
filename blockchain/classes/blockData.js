@@ -1,4 +1,4 @@
-import { Transaction } from "./transactions";
+import { Transaction } from "./transactions.js";
 
 export class BlockData {
   transactions;
