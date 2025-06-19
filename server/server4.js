@@ -1,18 +1,18 @@
-// server.js
-import express from "express";
-import bodyParser from "body-parser";
-import cors from "cors";
-import blockRoutes from "./routes/blockRoutes.js";
-import { PORT4 } from "../constants/const.js";
+// // server.js
+// import express from "express";
+// import bodyParser from "body-parser";
+// import cors from "cors";
+// import blockRoutes from "./routes/blockRoutes.js";
+// import { PORT4 } from "../constants/const.js";
 
-const app = express();
+// const app = express();
 
 
-app.use(cors());
-app.use(bodyParser.json());
-app.use("/api", blockRoutes);
+// app.use(cors());
+// app.use(bodyParser.json());
+// app.use("/api", blockRoutes);
 
-app.listen(PORT4, () => {
-  console.log(`Server running on http://localhost:${PORT4}`);
-});
+// app.listen(PORT4, () => {
+//   console.log(`Server running on http://localhost:${PORT4}`);
+// });
 

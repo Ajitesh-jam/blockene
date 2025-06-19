@@ -43,3 +43,24 @@ export const getNBlocks = (req, res) => {
   const latestBlocks = blockchain.slice(-n).reverse(); // From latest to oldest
   res.json(latestBlocks);
 };
+
+export const replaceChain = (req, res) => {
+  const { chain } = req.body;
+  if (isValidChain(chain) && chain.length > blockchain.length) {
+    blockchain = chain;
+    res.send("✅ Chain replaced with consensus chain.");
+  } else {
+    res.status(400).send("❌ Invalid or shorter chain.");
+  }
+};
+
+// Validate the integrity of a blockchain
+export function isValidChain(chain) {
+  for (let i = 1; i < chain.length; i++) {
+    if (chain[i].previousHash !== chain[i - 1].hash) return false;
+  }
+  return true;
+}
+
+export const getBlockchain = () => blockchain;
+export const setBlockchain = (newChain) => { blockchain = newChain; }

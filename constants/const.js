@@ -3,6 +3,6 @@ export const FIRST_BLOCK_HASH = "0".repeat(64);
 
 export const CONSENSUS_POLITICIANS_THRESHOLD = 2;
 export const PORT1 = 4000;
-export const PORT2 = 5000;
+export const PORT2 = 4001;
 export const PORT3 = 6000;
 export const PORT4 = 7001;
