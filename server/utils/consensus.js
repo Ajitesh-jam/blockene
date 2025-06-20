@@ -1,9 +1,14 @@
 // utils/consensus.js
 
 const axios = require("axios");
-const { getBlockchain, setBlockchain, isValidChain } = require("../controllers/blockController");
+const {
+  getBlockchain,
+  setBlockchain,
+  isValidChain,
+} = require("../controllers/blockController");
 
-const peerPorts = [4000, 5000, 6000, 7001];
+const peerPorts = [4000, 5000, 6000, 7001]; //abhi ports theek hai but aagey jaake yeh IPS hojayegey ti code uss hisab se likhna padega
+//maaney sirf ports me fetch mat karr...pura pura IP address le lo
 
 async function fetchPeerChains(myPort) {
   const chains = [];
@@ -11,7 +16,7 @@ async function fetchPeerChains(myPort) {
   for (const port of peerPorts) {
     if (port === myPort) continue;
     try {
-      const res = await axios.get(`http://localhost:${port}/api/blocks`);
+      const res = await axios.get(`http://localhost:${port}/api/blocks`); //issey ip address karna ..naaki localhost
       chains.push(res.data);
     } catch {
       console.warn(`⚠️ Peer ${port} unreachable`);
@@ -32,7 +37,8 @@ function findConsensusChain(peerChains) {
 
     if (
       countMap[key] > maxVotes ||
-      (countMap[key] === maxVotes && (!maxChain || chain.length > maxChain.length))
+      (countMap[key] === maxVotes &&
+        (!maxChain || chain.length > maxChain.length))
     ) {
       maxVotes = countMap[key];
       maxChain = chain;
@@ -49,12 +55,12 @@ async function syncConsensus(myPort) {
 
   if (consensusChain && consensusChain.length > getBlockchain().length) {
     setBlockchain(consensusChain);
-    console.log("✅ Synced with consensus chain.");
+    console.log("Synced with consensus chain.");
   } else {
-    console.log("ℹ️ No valid longer consensus chain found.");
+    console.log("No valid longer consensus chain found.");
   }
 }
 
 module.exports = {
-  syncConsensus
+  syncConsensus,
 };

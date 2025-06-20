@@ -181,15 +181,15 @@ import express from "express";
 import bodyParser from "body-parser";
 import axios from "axios";
 
-import { Transaction } from "./blockchain/classes/transactions.js";
-import { Block } from "./blockchain/classes/block.js";
-import { BlockData } from "./blockchain/classes/blockData.js";
-import { BlockHeader } from "./blockchain/classes/blockHeader.js";
+import { Transaction } from "../blockchain/classes/transactions.js";
+import { Block } from "../blockchain/classes/block.js";
+import { BlockData } from "../blockchain/classes/blockData.js";
+import { BlockHeader } from "../blockchain/classes/blockHeader.js";
 import {
   NO_OF_TRANSACTIONS_IN_BLOCK,
   CONSENSUS_POLITICIANS_THRESHOLD,
-} from "./constants/const.js";
-import { hash } from "./blockchain/utils/crypto.js";
+} from "../constants/const.js";
+import { hash } from "../blockchain/utils/crypto.js";
 
 const app = express();
 app.use(bodyParser.json());
