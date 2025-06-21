@@ -34,3 +34,28 @@ export class Block {
 //     hash
 
 //   }
+
+//block ke sath ek witness list bhi hogi
+// witnessList: [
+//   {
+//     approverCitizen: "publicKey",
+//     txPool: [
+//       {
+//         id: "tx1",
+//         sender: "senderPublicKey",
+//         receiver: "receiverPublicKey",
+//         amount: 100,
+//         timestamp: "2023-10-01T12:00:00Z",
+//         signature: "transactionSignature"
+//       },
+//       // more transactions
+//     ],
+//     witnessesOfEachTransactions: {
+//       "tx1": ["witness1PublicKey", "witness2PublicKey"],
+//       // more transactions with their witnesses
+//     },
+//     signature: "signatureOfWitnessList"
+//   },
+
+//ussey bi store karney ka bana lena jaise block ka banya hai
+//check witness list wala folder usme class likhi hai

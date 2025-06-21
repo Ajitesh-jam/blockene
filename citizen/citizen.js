@@ -177,6 +177,7 @@
 //     res.status(500).send("Error proposing block to politicians");
 //   }
 // });
+
 import express from "express";
 import bodyParser from "body-parser";
 import axios from "axios";
@@ -189,7 +190,7 @@ import {
   NO_OF_TRANSACTIONS_IN_BLOCK,
   CONSENSUS_POLITICIANS_THRESHOLD,
 } from "../constants/const.js";
-import { hash } from "../blockchain/utils/crypto.js";
+import { hash, signMsg } from "../blockchain/utils/crypto.js";
 
 const app = express();
 app.use(bodyParser.json());
@@ -200,154 +201,51 @@ const politicianIpPorts = [
   "localhost:7001",
 ];
 
-let verifiedTransactions = [];
+//ask for transactions from politicians and witness list from politicians
+let blockchain = [];
+let witnessList = [];
 
-// ----------------- Create Transaction -----------------
-
+app.get("/getWitnessList", async (req, res) => {
+  try {
+    const responses = await Promise.all(
+      politicianIpPorts.map((ipPort) =>
+        axios.get(`http://${ipPort}/witnessList`)
+      )
+    );
+    const witnessLists = responses.map((response) => response.data);
+    // Check if all witness lists are the same
+    if (new Set(witnessLists).size !== 1) {
+      return res.status(500).send("Witness lists do not match");
+    }
+    witnessList = witnessLists[0];
+    res.json(witnessList);
+  } catch (error) {
+    console.error("Error fetching witness list:", error);
+    res.status(500).send("Error fetching witness list");
+  }
+});
 app.post("/createTransaction", (req, res) => {
-  const { sender, receiver, amount } = req.body;
-
-  const amountNum = Number(amount);
-  if (!sender || !receiver || isNaN(amountNum) || amountNum <= 0) {
+  const { senderPublicKey, senderPvtKey, receiver, amount } = req.body;
+  if (!sender || !receiver || !amount) {
     return res.status(400).send("Invalid transaction data");
   }
-
+  const txId = sender.toString() + ":" + receiver.toString() + ":" + amount;
+  // Create a new transaction
   const transaction = new Transaction(
     null,
-    sender,
+    senderPublicKey,
     receiver,
-    amountNum,
+    amount,
     Date.now(),
-    hash(sender + receiver + amountNum)
+    signMsg(senderPvtKey, txId)
   );
 
+  // Verify the transaction
   if (!transaction.verfiyTransaction()) {
     return res.status(400).send("Transaction verification failed");
   }
 
-  verifiedTransactions.push(transaction);
+  // Store the verified transaction
+  blockchain.push(transaction);
   res.status(201).send("Transaction created successfully");
-});
-
-app.get("/getVerifiedTransactions", (req, res) => {
-  res.json(verifiedTransactions);
-});
-
-app.post("/clearVerifiedTransactions", (req, res) => {
-  verifiedTransactions = [];
-  res.send("Cleared local verified transactions");
-});
-
-// ----------------- Fetch Latest Block -----------------
-
-async function getLatestBlock() {
-  try {
-    const blocks = await Promise.all(
-      politicianIpPorts.map((ipPort) =>
-        axios.get(`http://${ipPort}/api/blocks`)
-      )
-    );
-    const blockDataArray = blocks.map((res) => res.data);
-
-    console.log("Fetched blocks from politicians:", blockDataArray);
-
-    const blockCount = {};
-    const hashToBlock = {};
-
-    for (const block of blockDataArray) {
-      const blockHash = block.hash;
-      blockCount[blockHash] = (blockCount[blockHash] || 0) + 1;
-      hashToBlock[blockHash] = block;
-    }
-
-    const majorityHash = Object.keys(blockCount).find(
-      (hash) => blockCount[hash] >= CONSENSUS_POLITICIANS_THRESHOLD
-    );
-    console.log("Block counts:", blockCount);
-    console.log("Hash to Block mapping:", hashToBlock);
-    console.log("Majority block hash:", majorityHash);
-
-    if (majorityHash) {
-      return hashToBlock[majorityHash];
-    } else {
-      throw new Error("No consensus on latest block");
-    }
-  } catch (error) {
-    console.error("Error in getLatestBlock:", error.message);
-    throw error;
-  }
-}
-
-app.get("/getLatestBlock", async (req, res) => {
-  try {
-    const block = await getLatestBlock();
-    res.json(block);
-  } catch {
-    res.status(500).send("No consensus on latest block");
-  }
-});
-
-app.get("/getLatestHash", async (req, res) => {
-  try {
-    const block = await getLatestBlock();
-    res.json({ latestBlockHash: block.hash });
-  } catch {
-    res.status(500).send("Error fetching block hash");
-  }
-});
-
-// ----------------- Propose Block -----------------
-
-app.post("/proposeTransaction", async (req, res) => {
-  const transactions = req.body.transactions;
-  if (
-    !Array.isArray(transactions) ||
-    transactions.length < NO_OF_TRANSACTIONS_IN_BLOCK
-  ) {
-    return res
-      .status(400)
-      .send(
-        `At least ${NO_OF_TRANSACTIONS_IN_BLOCK} transactions are required`
-      );
-  }
-
-  let prevBlock;
-  try {
-    prevBlock = await getLatestBlock();
-  } catch {
-    return res.status(500).send("Failed to get latest block");
-  }
-
-  const header = new BlockHeader(
-    transactions.length,
-    prevBlock.hash,
-    Math.floor(Math.random() * 100000)
-  );
-
-  const data = new BlockData(transactions);
-  const block = new Block(header, data);
-  block.makeMerkleTree();
-
-  try {
-    const responses = await Promise.all(
-      politicianIpPorts.map((ipPort) =>
-        axios.post(`http://${ipPort}/addBlock`, block)
-      )
-    );
-    if (responses.every((r) => r.status === 200)) {
-      res.status(201).send("Block proposed successfully");
-    } else {
-      res.status(500).send("Block submission failed");
-    }
-  } catch (err) {
-    console.error("Proposing block failed:", err.message);
-    res.status(500).send("Error proposing block");
-  }
-});
-
-// ----------------- Run Server -----------------
-
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Citizen server running on port ${PORT}`);
 });

@@ -5,6 +5,7 @@ let blockchain = [];
 
 //ek validate block function bna le jo block ki properties ko check kare
 //call block.verify
+
 export const addBlock = (req, res) => {
   //add logic to validate the block before adding it
 
@@ -72,3 +73,5 @@ export const getBlockchain = () => blockchain; //yeh kyu hai? Is it used somewhe
 export const setBlockchain = (newChain) => {
   blockchain = newChain;
 };
+
+//add witness list related functions bhi

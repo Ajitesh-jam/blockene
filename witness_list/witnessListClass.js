@@ -14,7 +14,7 @@ import { Key } from "../blockchain/utils/key";
 // // txPool is the transaction pool containing the transactions
 // // witnessesOfEachTransactions is a map where the key is the transaction ID and the value
 // // is an array of public keys of witnesses for that transaction
-//it gives signature which confirms
+// it gives signature which confirms
 //  (approverCitizen + txpool + witnessesOfEachTransactions)
 // signed by approverCitizen
 
@@ -143,4 +143,42 @@ export function verifyWitnessList(
     approverCitizen + ":" + transactionsString + ":" + witnessesString;
 
   return verifySignature(approverCitizen, dataToVerify, signature);
+}
+
+export function addWitnessListToMyWitnessList(
+  witnessList,
+  approverCitizen,
+  txPool,
+  witnessesOfEachTransactions, //mapp of transactionId to array of witnesses
+  signature
+) {
+  //add witness list to my witness list
+  if (!witnessList) {
+    throw new Error("Witness list is required to add to my witness list");
+  }
+  if (
+    !approverCitizen ||
+    !txPool ||
+    !witnessesOfEachTransactions ||
+    !signature
+  ) {
+    throw new Error("All parameters are required to add witness list");
+  }
+  if (
+    !verifyWitnessList(
+      approverCitizen,
+      txPool,
+      witnessesOfEachTransactions,
+      signature
+    )
+  ) {
+    throw new Error("Witness list verification failed");
+  }
+
+  //add transactions to the witness list
+  witnessList.addTransactions(txPool.getTransactions());
+  //add witnesses to the witness list
+  for (const [txId, witnesses] of witnessesOfEachTransactions.entries()) {
+    witnessList.addWitnesses(txId, witnesses);
+  }
 }
