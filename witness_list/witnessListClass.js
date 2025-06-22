@@ -145,11 +145,16 @@ export class WitnessListOfTxPool {
       this.witnessesOfEachTransactions.set(txId, []);
     }
     const witnesses = this.witnessesOfEachTransactions.get(txId);
+    console.log("\n\n\n\nAdding witness:", witness);
     if (witnesses.includes(witness)) {
-      throw new Error("Verifier already exists for this transaction");
+      // throw new Error("Verifier already exists for this transaction");
+      console.warn("Witness already exists for this transaction");
+      return false; // Skip if the witness already exists
     }
     witnesses.push(witness);
+    this.witnessesOfEachTransactions.set(txId, witnesses);
     this.signature = null;
+    return true; // Witness added successfully
   }
   addWitnesses(txId, _witnesses) {
     if (!Array.isArray(_witnesses)) {
@@ -212,13 +217,13 @@ export function addWitnessListToMyWitnessList(
   witnessesOfEachTransactions, //mapp of transactionId to array of witnesses
   signature
 ) {
-  console.log(
-    "Adding witness list to my witness list",
-    approverCitizen,
-    txPool,
-    witnessesOfEachTransactions,
-    signature
-  );
+  // console.log(
+  //   "Adding witness list to my witness list",
+  //   approverCitizen,
+  //   txPool,
+  //   witnessesOfEachTransactions,
+  //   signature
+  // );
   //add witness list to my witness list
   if (!myWitnessList || !(myWitnessList instanceof WitnessListOfTxPool)) {
     throw new Error("Witness list missing or invalid");
@@ -260,13 +265,71 @@ export function addWitnessListToMyWitnessList(
   if (!verifyWitnessList(approverCitizen, txPoolData, witnessMap, signature)) {
     throw new Error("Witness list verification failed");
   }
-  //add all transaction in this list to my pool
+
+  for (const [txId, witnesses] of witnessMap.entries()) {
+    myWitnessList.witnessesOfEachTransactions.set(txId, witnesses); // Add the witnesses for each transaction
+  }
+  myWitnessList.approverCitizen = approverCitizen; // Store the approver's public key
+  myWitnessList.signature = signature; // Store the signature in the witness list
+}
+
+export function addWitnessesToMyWitnessList(
+  myWitnessList,
+  approverCitizen,
+  txPool,
+  witnessesOfEachTransactions, //mapp of transactionId to array of witnesses
+  signature
+) {
+  // console.log(
+  //   `Adding witnesses to my witness list ${approverCitizen}, txPool: ${txPool}, witnessesOfEachTransactions: ${JSON.stringify(
+  //     witnessesOfEachTransactions
+  //   )}, signature: ${signature}`
+  // );
+  //add witness list to my witness list
+  if (!myWitnessList || !(myWitnessList instanceof WitnessListOfTxPool)) {
+    throw new Error("Witness list missing or invalid");
+  }
+  if (
+    !approverCitizen ||
+    !txPool ||
+    !witnessesOfEachTransactions ||
+    !signature
+  ) {
+    throw new Error("All parameters are required to add witness list");
+  }
+  const witnessMap = new Map();
+  for (const [txId, witnesses] of Object.entries(witnessesOfEachTransactions)) {
+    if (!Array.isArray(witnesses) || witnesses.length === 0) {
+      throw new Error(
+        `Witnesses for transaction ${txId} must be a non-empty array`
+      );
+    }
+    witnessMap.set(txId, witnesses);
+  }
+
+  const txPoolData = new TxPoolClass();
+  for (const txn of txPool.transactions) {
+    const transaction = new Transaction(
+      txn.id,
+      txn.sender,
+      txn.receiver,
+      txn.amount,
+      txn.signature,
+      txn.timestamp
+    );
+    if (!transaction.verfiyTransaction())
+      // verify each transaction
+      throw Error("Transaction not  verified!");
+
+    txPoolData.addATransaction(transaction);
+    myWitnessList.addATransaction(transaction);
+  }
+  if (!verifyWitnessList(approverCitizen, txPoolData, witnessMap, signature)) {
+    throw new Error("Witness list verification failed");
+  }
 
   //add approver citizen as a witness to each transaction in the txPool
   for (const [txId, witnesses] of witnessMap.entries()) {
-    if (!witnesses.includes(approverCitizen)) {
-      witnesses.push(approverCitizen); // Add the approver as a witness
-    }
-    myWitnessList.addAWitness(txId, approverCitizen);
+    myWitnessList.addAWitness(txId, approverCitizen); // add approver citizen as a witness
   }
 }

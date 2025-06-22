@@ -16,6 +16,7 @@ import { hash, signMsg } from "../blockchain/utils/crypto.js";
 import {
   WitnessListOfTxPool,
   addWitnessListToMyWitnessList,
+  addWitnessesToMyWitnessList,
 } from "../witness_list/witnessListClass.js";
 
 import { Key } from "../blockchain/utils/key.js";
@@ -27,9 +28,9 @@ app.use(bodyParser.json());
 
 // Define the IP addresses and ports of the politician server
 const politicianIpPorts = [
-  "localhost:4000",
-  "localhost:6000",
-  "localhost:7001",
+  "localhost:4500",
+  // "localhost:6000",
+  // "localhost:7001",
 ];
 const PORT = process.env.PORT || 5500;
 
@@ -83,6 +84,8 @@ addWitnessListToMyWitnessList(
   Initialdata.witnessesOfEachTransactions,
   Initialdata.signature
 );
+myWitnessList.approverCitizen = Number(PORT); // Set the approver citizen to the current port
+myWitnessList.signature = null;
 
 app.get("/getWitnessList", async (req, res) => {
   try {
@@ -137,6 +140,7 @@ app.get("/getBlockchain", (req, res) => {
     res.status(404).send("Blockchain not found");
   }
 });
+
 app.post("/addBlockToBlockchain", (req, res) => {
   try {
     // add all the transactions from the txPool to the block data
@@ -238,13 +242,53 @@ app.post("/addWitnessToWitnessList", (req, res) => {
     if (!txId || !witness) {
       return res.status(400).send("Invalid witness data");
     }
-    console.log("Adding witness:", txId, "\n\nwitn: ", witness);
-    // Add a witness to the witness list
-    myWitnessList.addAWitness(txId, witness);
+
+    // Add the witness to the witness list
+    const status = myWitnessList.addAWitness(txId, witness);
+    if (!status) {
+      return res
+        .status(400)
+        .send("Witness already exists for this transaction");
+    }
+
     res.status(200).send("Witness added successfully", myWitnessList);
   } catch (error) {
     console.error("Error adding witness:", error);
     res.status(500).send("Error adding witness");
+  }
+});
+
+app.post("/addWitnessesFromOtherWitnessListToMyWitnessList", (req, res) => {
+  try {
+    const { approverCitizen, txPool, witnessesOfEachTransactions, signature } =
+      req.body;
+    if (
+      !approverCitizen ||
+      !txPool ||
+      !witnessesOfEachTransactions ||
+      !signature
+    ) {
+      return res.status(400).send("Invalid witness list data");
+    }
+    console.log(
+      "Adding witness list:",
+      approverCitizen,
+      txPool,
+      witnessesOfEachTransactions,
+      signature
+    );
+    // Add the witness list to my witness list
+    addWitnessesToMyWitnessList(
+      myWitnessList,
+      approverCitizen,
+      txPool,
+      witnessesOfEachTransactions,
+      signature
+    );
+    res.status(200).send("Witness list added successfully");
+  } catch (error) {
+    console.error("Error adding witness list:", error);
+    res.status(500).send("Error adding witness list");
   }
 });
 
@@ -267,26 +311,84 @@ app.post("/addWitnessListToMyWitnessList", (req, res) => {
   }
 });
 
-app.post("/shareMyWitnessListWithPolitician", (req, res) => {
+app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
   try {
-    for (const ipPort of politicianIpPorts) {
-      axios
-        .post(`http://${ipPort}/addWitnessListToMyWitnessList`, {
-          witnessList: myWitnessList.getWitnessList(),
-        })
-        .then((response) => {
-          console.log(
-            `Witness list shared with ${ipPort} successfully in response:`,
-            response.data
+    const sharePromises = politicianIpPorts.map(async (ipPort) => {
+      try {
+        // Get the witness list data - handle Map or Object appropriately
+        const witnessList = myWitnessList.witnessesOfEachTransactions;
+        console.log(`Sharing witness list with ${ipPort}:`, witnessList);
+
+        // Format witness data properly depending on its type
+        let witnessMap = new Map();
+        if (witnessList instanceof Map) {
+          // Handle if it's a Map
+          witnessMap = new Map(
+            Array.from(witnessList.entries()).map(([txId, witnesses]) => [
+              txId,
+              witnesses,
+            ])
           );
-        })
-        .catch((error) => {
-          console.error(`Error sharing witness list with ${ipPort}:`, error);
-        });
+        } else {
+          // Handle if it's an Object
+          witnessMap = new Map(
+            Object.entries(witnessList).map(([txId, witnesses]) => [
+              txId,
+              witnesses,
+            ])
+          );
+        }
+        // Get transaction data
+        const txPool = {
+          transactions: myWitnessList.txPool.getAllTransactions(),
+        };
+
+        // Format data without double-stringifying
+        const formattedWitnessList = {
+          approverCitizen: myWitnessList.approverCitizen,
+          txPool: txPool,
+          witnessesOfEachTransactions: Object.fromEntries(witnessMap), // Convert Map to Object for JSON serialization
+          signature: myWitnessList.signature,
+        };
+
+        // Send data - let axios handle the JSON conversion
+        const response = await axios.post(
+          `http://${ipPort}/addWitnessListToPool`,
+          {
+            witnessList: formattedWitnessList,
+          }
+        );
+
+        console.log(
+          `Witness list shared with ${ipPort} successfully in response:`,
+          response.data
+        );
+        return { success: true, ipPort };
+      } catch (error) {
+        console.error(
+          `Error sharing witness list with ${ipPort}:`,
+          error.response?.data || error.message
+        );
+        return { success: false, ipPort, error: error.message };
+      }
+    });
+
+    // Wait for all sharing operations to complete
+    const results = await Promise.allSettled(sharePromises);
+
+    // Check if at least one succeeded
+    const anySuccess = results.some(
+      (result) => result.status === "fulfilled" && result.value.success
+    );
+
+    if (anySuccess) {
+      res.status(200).send("Witness list shared with politicians successfully");
+    } else {
+      res.status(500).send("Failed to share witness list with any politician");
     }
   } catch (error) {
-    console.error("Error sharing witness list with politician:", error);
-    res.status(500).send("Error sharing witness list with politician");
+    console.error("Error sharing witness list with politicians:", error);
+    res.status(500).send("Error sharing witness list with politicians");
   }
 });
 

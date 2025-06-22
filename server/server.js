@@ -22,115 +22,59 @@ import { Transaction } from "../blockchain/classes/transactions.js";
 import { signMsg } from "../blockchain/utils/crypto.js";
 import { Key } from "../blockchain/utils/key.js";
 import { addWitnessListToMyWitnessList } from "../witness_list/witnessListClass.js";
-let witnessListOfTxPool = new WitnessListOfTxPool(PORT); //this should be array
-let witnessList = [];
+// let witnessListOfTxPool = new WitnessListOfTxPool(PORT); //this should be array
+let allWitnessLists = [];
 
-app.get("/getMyWitnessList", (req, res) => {
-  if (witnessListOfTxPool) {
-    res.json(witnessListOfTxPool);
-  } else {
-    res.status(404).send("Witness list not found");
-  }
-});
-
-app.post("/createTransaction", (req, res) => {
+app.get("/getAllWitnessList", (req, res) => {
+  let allWitnessListJsonObj = [];
   try {
-    const { tx_id, senderPublicKey, senderPvtKey, receiver, amount } = req.body;
-    if (!senderPublicKey || !senderPvtKey || !receiver || !amount) {
-      return res.status(400).send("Invalid transaction data");
+    for (const witness of allWitnessLists) {
+      if (witness instanceof WitnessListOfTxPool) {
+        allWitnessListJsonObj.push(witness.getWitnessList());
+      }
+      console.log("Not a witness list Witness List:", witness.getWitnessList());
     }
-    const txId =
-      tx_id.toString() +
-      ":" +
-      senderPublicKey.toString() +
-      ":" +
-      receiver.toString() +
-      ":" +
-      amount;
-
-    // Create a new transaction
-    const transaction = new Transaction(
-      tx_id, // Unique ID for the transaction
-      senderPublicKey,
-      receiver,
-      amount,
-      signMsg(senderPvtKey, txId) // Sign the transaction with the sender's private key
-    );
-    const status = witnessListOfTxPool.txPool.addATransaction(transaction);
-    if (!status) {
-      return res.status(400).send("Transaction already exists in the pool");
+    if (allWitnessListJsonObj.length === 0) {
+      return res.status(404).send("No witness lists found");
     }
-
-    // Verify the transaction
-    if (!transaction.verfiyTransaction()) {
-      return res.status(400).send("Transaction verification failed");
-    }
-    res.status(201).send("Transaction created successfully");
+    res.status(200).json(allWitnessListJsonObj);
   } catch (error) {
-    console.error("Error creating transaction:", error);
-    res.status(500).send("Error creating transaction");
+    console.error("Error fetching witness lists:", error);
+    res.status(500).send("Error fetching witness lists");
   }
 });
 
-app.post("/signWitnessList", (req, res) => {
-  try {
-    const { approverCitizen, pvtKey } = req.body;
-    if (!approverCitizen || !pvtKey) {
-      return res.status(400).send("Invalid witness list data");
-    }
-    // Sign the witness list
-    witnessListOfTxPool.signWitnessList(approverCitizen, pvtKey);
-    res.status(200).send("Witness list signed successfully");
-  } catch (error) {
-    console.error("Error signing witness list:", error);
-    res.status(500).send("Error signing witness list");
-  }
-});
-
-app.post("/signWitnessList", (req, res) => {
-  try {
-    const { pvtKey } = req.body;
-    if (!approverCitizen || !pvtKey) {
-      return res.status(400).send("Invalid witness list data");
-    }
-    const key = new Key(pvtKey, pvtKey); // Assuming pvtKey is the public key of the approver
-    // Sign the witness list
-    witnessListOfTxPool.signWitnessList(key);
-    res.status(200).send("Witness list signed successfully");
-  } catch (error) {
-    console.error("Error signing witness list:", error);
-    res.status(500).send("Error signing witness list");
-  }
-});
-
-app.post("/addWitnessToWitnessList", (req, res) => {
-  try {
-    const { txId, witness } = req.body;
-    if (!txId || !witness) {
-      return res.status(400).send("Invalid witness data");
-    }
-    console.log("Adding witness:", txId, "\n\nwitn: ", witness);
-    // Add a witness to the witness list
-    witnessListOfTxPool.addAWitness(txId, witness);
-    res.status(200).send("Witness added successfully", witnessListOfTxPool);
-  } catch (error) {
-    console.error("Error adding witness:", error);
-    res.status(500).send("Error adding witness");
-  }
-});
-
-app.post("/addWitnessListToMyWitnessList", (req, res) => {
+app.post("/addWitnessListToPool", (req, res) => {
   try {
     const { witnessList } = req.body;
+    if (allWitnessLists.includes(witnessList))
+      console.log("Received witness list:", witnessList);
+
+    //check if there is already a witness list with the same approverCitizen
+    const existingWitnessList = allWitnessLists.find(
+      (witness) => witness.approverCitizen === witnessList.approverCitizen
+    );
+    if (existingWitnessList) {
+      addWitnessListToMyWitnessList(
+        existingWitnessList,
+        witnessList.approverCitizen,
+        witnessList.txPool,
+        witnessList.witnessesOfEachTransactions,
+        witnessList.signature
+      );
+      return res.status(200).send("Witness list updated successfully");
+    }
+    const witnessListObj = new WitnessListOfTxPool(witnessList.approverCitizen);
 
     // Add the received witness list to the local witness list
     addWitnessListToMyWitnessList(
-      witnessListOfTxPool,
+      witnessListObj,
       witnessList.approverCitizen,
       witnessList.txPool,
       witnessList.witnessesOfEachTransactions,
       witnessList.signature
     );
+    allWitnessLists.push(witnessListObj);
     res.status(200).send("Witness list added successfully");
   } catch (error) {
     console.error("Error adding witness list:", error);
