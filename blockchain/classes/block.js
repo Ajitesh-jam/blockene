@@ -1,4 +1,3 @@
-import sha256 from "crypto-js/sha256.js";
 import { BlockHeader } from "./blockHeader.js";
 import { BlockData } from "./blockData.js";
 import { hash, buildMerkleTree } from "../utils/crypto.js";
@@ -24,7 +23,8 @@ export class Block {
   makeMerkleTree() {
     const transactions = this.data.getTransactions();
     const leaves = transactions.map((tx) => hash(tx.toString()));
-    this.hash = buildMerkleTree(leaves);
+    const txnHash = buildMerkleTree(leaves);
+    this.hash = hash(this.header.toString() + txnHash).toString();
   }
 
   toString() {

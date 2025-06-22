@@ -1,7 +1,7 @@
-import { Transaction } from "../blockchain/classes/transactions";
-import { TxPoolClass } from "../tx_pool/txPoolClass";
-import { signMsg, verifySignature } from "../blockchain/utils/crypto";
-import { Key } from "../blockchain/utils/key";
+import { TxPoolClass } from "../tx_pool/txPoolClass.js";
+import { signMsg, verifySignature } from "../blockchain/utils/crypto.js";
+import { Key } from "../blockchain/utils/key.js";
+import { Transaction } from "../blockchain/classes/transactions.js";
 
 /// WitnessListOfTxPool class represents a list of transactions in the pool
 /// along with the witnesses for each transaction.
@@ -17,6 +17,28 @@ import { Key } from "../blockchain/utils/key";
 // it gives signature which confirms
 //  (approverCitizen + txpool + witnessesOfEachTransactions)
 // signed by approverCitizen
+
+export function makeDataToSign(
+  approverCitizen,
+  txPool,
+  witnessesOfEachTransactions
+) {
+  if (!approverCitizen || !txPool || !witnessesOfEachTransactions) {
+    throw new Error("All parameters are required to create data to sign");
+  }
+  const txPoolData = txPool.transactions.map((tx) => tx.toString());
+  if (txPoolData.length === 0) {
+    throw new Error("No transactions to sign in the witness list");
+  }
+  // Create a string representation of the transactions for signing
+  const transactionsString = txPoolData.join(",");
+  const witnessesString = Array.from(witnessesOfEachTransactions.entries())
+    .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
+    .join(";");
+  const data =
+    approverCitizen + ":" + transactionsString + ":" + witnessesString;
+  return data;
+}
 
 export class WitnessListOfTxPool {
   // List of transactions in the pool
@@ -40,23 +62,54 @@ export class WitnessListOfTxPool {
     this.witnessesOfEachTransactions = new Map(); // Initialize the map to track witnesses for each transaction
   }
 
-  makeDataToSign() {
-    // Assuming we have a method to sign the witness list using the approver's public key
-    const txPoolData = this.txPool.getTransactions().map((tx) => tx.toString());
-    if (txPoolData.length === 0) {
-      throw new Error("No transactions to sign in the witness list");
-    }
-    // Create a string representation of the transactions for signing
-    const transactionsString = txPoolData.join(",");
-    const witnessesString = Array.from(
-      this.witnessesOfEachTransactions.entries()
-    )
-      .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
-      .join(";");
+  getWitnessList() {
+    // if (!this.approverCitizen) {
+    //   throw new Error(
+    //     "Approver's public key is required to get the witness list"
+    //   );
+    // }
+    // if (this.signature === null) {
+    //   throw new Error("Witness list has not been signed yet");
+    // }
+    console.log("Witness list:", this.toString());
 
-    return (
-      this.approverCitizen + ":" + transactionsString + ":" + witnessesString
+    const witnessesOfEachTransactionsObj = {};
+    this.witnessesOfEachTransactions.forEach((witnesses, txId) => {
+      witnessesOfEachTransactionsObj[txId] = witnesses;
+    });
+
+    // Convert the Map to a plain object for easier serialization
+    return {
+      approverCitizen: this.approverCitizen,
+      txPool: this.txPool,
+      witnessesOfEachTransactions: witnessesOfEachTransactionsObj,
+      signature: this.signature,
+    };
+  }
+
+  makeDataToSign() {
+    // // Assuming we have a method to sign the witness list using the approver's public key
+    // const txPoolData = this.txPool.getTransactions().map((tx) => tx.toString());
+    // if (txPoolData.length === 0) {
+    //   throw new Error("No transactions to sign in the witness list");
+    // }
+    // // Create a string representation of the transactions for signing
+    // const transactionsString = txPoolData.join(",");
+    // const witnessesString = Array.from(
+    //   this.witnessesOfEachTransactions.entries()
+    // )
+    //   .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
+    //   .join(";");
+
+    // return (
+    //   this.approverCitizen + ":" + transactionsString + ":" + witnessesString
+    // );
+    const data = makeDataToSign(
+      this.approverCitizen,
+      this.txPool,
+      this.witnessesOfEachTransactions
     );
+    return data;
   }
 
   signWitnessList(_key) {
@@ -73,19 +126,21 @@ export class WitnessListOfTxPool {
       throw new Error("Provided key does not match the approver's public key");
     }
     const dataToSign = this.makeDataToSign();
-
     // this.signature = signMsg(_key.getPvtKey(), dataToSign);
     this.signature = signMsg(this.approverCitizen, dataToSign);
   }
 
   addATransaction(tx) {
-    this.txPool.addATransaction(tx); //transaction instance + duplicate + verification check is done in txPool
+    this.signature = null;
+    return this.txPool.addATransaction(tx); //transaction instance + duplicate + verification check is done in txPool
   }
   addTransactions(_transactions) {
     //add unique verified transactions to the txPool
-    this.txPool.addTransactions(_transactions); //transaction instance + duplicate + verification check is done in txPool
+    this.signature = null;
+    return this.txPool.addTransactions(_transactions); //transaction instance + duplicate + verification check is done in txPool
   }
   addAWitness(txId, witness) {
+    //witness is map
     if (!this.witnessesOfEachTransactions.has(txId)) {
       this.witnessesOfEachTransactions.set(txId, []);
     }
@@ -93,9 +148,8 @@ export class WitnessListOfTxPool {
     if (witnesses.includes(witness)) {
       throw new Error("Verifier already exists for this transaction");
     }
-    const previousWitnesses = witnesses.get(txId) || [];
-    previousWitnesses.push(witness);
-    witnesses.set(txId, previousWitnesses);
+    witnesses.push(witness);
+    this.signature = null;
   }
   addWitnesses(txId, _witnesses) {
     if (!Array.isArray(_witnesses)) {
@@ -112,6 +166,7 @@ export class WitnessListOfTxPool {
       }
       witnesses.push(witness);
     }
+    this.signature = null;
   }
 }
 
@@ -129,32 +184,44 @@ export function verifyWitnessList(
   ) {
     throw new Error("All parameters are required for verification");
   }
-  const txPoolData = txPool.getTransactions().map((tx) => tx.toString());
-  if (txPoolData.length === 0) {
-    throw new Error("No transactions to verify in the witness list");
-  }
-  // Create a string representation of the transactions for verification
-  const transactionsString = txPoolData.join(",");
-  const witnessesString = Array.from(witnessesOfEachTransactions.entries())
-    .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
-    .join(";");
+  // const txPoolData = txPool.getTransactions().map((tx) => tx.toString());
+  // if (txPoolData.length === 0) {
+  //   throw new Error("No transactions to verify in the witness list");
+  // }
+  // // Create a string representation of the transactions for verification
+  // const transactionsString = txPoolData.join(",");
+  // const witnessesString = Array.from(witnessesOfEachTransactions.entries())
+  //   .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
+  //   .join(";");
 
-  const dataToVerify =
-    approverCitizen + ":" + transactionsString + ":" + witnessesString;
+  // const dataToVerify =
+  //   approverCitizen + ":" + transactionsString + ":" + witnessesString;
+  const dataToVerify = makeDataToSign(
+    approverCitizen,
+    txPool,
+    witnessesOfEachTransactions
+  );
 
   return verifySignature(approverCitizen, dataToVerify, signature);
 }
 
 export function addWitnessListToMyWitnessList(
-  witnessList,
+  myWitnessList,
   approverCitizen,
   txPool,
   witnessesOfEachTransactions, //mapp of transactionId to array of witnesses
   signature
 ) {
+  console.log(
+    "Adding witness list to my witness list",
+    approverCitizen,
+    txPool,
+    witnessesOfEachTransactions,
+    signature
+  );
   //add witness list to my witness list
-  if (!witnessList) {
-    throw new Error("Witness list is required to add to my witness list");
+  if (!myWitnessList || !(myWitnessList instanceof WitnessListOfTxPool)) {
+    throw new Error("Witness list missing or invalid");
   }
   if (
     !approverCitizen ||
@@ -164,21 +231,42 @@ export function addWitnessListToMyWitnessList(
   ) {
     throw new Error("All parameters are required to add witness list");
   }
-  if (
-    !verifyWitnessList(
-      approverCitizen,
-      txPool,
-      witnessesOfEachTransactions,
-      signature
-    )
-  ) {
-    throw new Error("Witness list verification failed");
+  const witnessMap = new Map();
+  for (const [txId, witnesses] of Object.entries(witnessesOfEachTransactions)) {
+    if (!Array.isArray(witnesses) || witnesses.length === 0) {
+      throw new Error(
+        `Witnesses for transaction ${txId} must be a non-empty array`
+      );
+    }
+    witnessMap.set(txId, witnesses);
   }
 
-  //add transactions to the witness list
-  witnessList.addTransactions(txPool.getTransactions());
-  //add witnesses to the witness list
-  for (const [txId, witnesses] of witnessesOfEachTransactions.entries()) {
-    witnessList.addWitnesses(txId, witnesses);
+  const txPoolData = new TxPoolClass();
+  for (const txn of txPool.transactions) {
+    const transaction = new Transaction(
+      txn.id,
+      txn.sender,
+      txn.receiver,
+      txn.amount,
+      txn.signature,
+      txn.timestamp
+    );
+    if (!transaction.verfiyTransaction())
+      throw Error("Transaction not  verified!");
+
+    txPoolData.addATransaction(transaction);
+    myWitnessList.addATransaction(transaction);
+  }
+  if (!verifyWitnessList(approverCitizen, txPoolData, witnessMap, signature)) {
+    throw new Error("Witness list verification failed");
+  }
+  //add all transaction in this list to my pool
+
+  //add approver citizen as a witness to each transaction in the txPool
+  for (const [txId, witnesses] of witnessMap.entries()) {
+    if (!witnesses.includes(approverCitizen)) {
+      witnesses.push(approverCitizen); // Add the approver as a witness
+    }
+    myWitnessList.addAWitness(txId, approverCitizen);
   }
 }

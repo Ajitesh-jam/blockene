@@ -1,10 +1,13 @@
 // controllers/blockController.js
 import { Block } from "../models/Block.js";
+import { WitnessListOfTxPool } from "../../witness_list/witnessListClass.js";
 
 let blockchain = [];
 
 //ek validate block function bna le jo block ki properties ko check kare
 //call block.verify
+
+let witnessList = []; //array of witness lists ,(element is of type WitnessListClass)
 
 export const addBlock = (req, res) => {
   //add logic to validate the block before adding it

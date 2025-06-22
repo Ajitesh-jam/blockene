@@ -1,0 +1,25 @@
+{
+    "approverCitizen": "4500",
+    "txPool": {
+        "transactions": [
+            {
+                "id": "tx_1",
+                "sender": "aji",
+                "receiver": "someone",
+                "amount": 100,
+                "timestamp": "2025-06-21T13:59:06.147Z",
+                "signature": "61739f77d4e916defb420a9bdc8ec3cfbd10d45a596d3c7c1e3350dec08f5232"
+            },
+            {
+                "id": "tx_2",
+                "sender": "aji",
+                "receiver": "someone",
+                "amount": 100,
+                "timestamp": "2025-06-21T13:59:29.527Z",
+                "signature": "78ea546a781da315fad277b99354b5a18df632dee950a8e14bb3c6f2386a9aab"
+            }
+        ]
+    },
+    "witnessesOfEachTransactions": {},
+    "signature": null
+}

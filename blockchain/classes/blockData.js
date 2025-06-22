@@ -44,7 +44,22 @@ export class BlockData {
     console.log("All transactions verified successfully");
     return true;
   }
-  addTransaction(_transaction) {
-    this.transactions.push(_transaction);
+  addATransaction(transaction) {
+    if (!(transaction instanceof Transaction)) {
+      throw new Error("Transaction must be an instance of Transaction");
+    }
+    if (this.transactions.find((t) => t.id === transaction.id)) {
+      console.warn("Transaction already exists in the block data");
+      return; // Skip if the transaction already exists
+    }
+    this.transactions.push(transaction);
+  }
+  addTransactions(_transaction) {
+    if (!Array.isArray(_transaction)) {
+      throw new Error("Transactions must be an array");
+    }
+    for (const transaction of _transaction) {
+      this.addATransaction(transaction); // Add each transaction individually
+    }
   }
 }

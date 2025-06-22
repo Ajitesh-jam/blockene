@@ -24,7 +24,7 @@ import { Key } from "../utils/key.js";
 // const transaction = new Transaction("tx1", keyPair.getPubKey(), "receiver_public_key", 100,signMsg(keyPair.getPvtKey(), "tx1:sender_public_key:receiver_public_key:100"));
 
 export class Transaction {
-  constructor(_id, _sender, _reciever, _amount, _signature) {
+  constructor(_id, _sender, _reciever, _amount, _signature, _timestamp = null) {
     if (!_id || !_sender || !_reciever || !_amount) {
       throw new Error("Transaction requires id, sender, receiver, and amount.");
     }
@@ -35,7 +35,7 @@ export class Transaction {
     this.sender = _sender; // public key of the sender
     this.receiver = _reciever;
     this.amount = _amount;
-    this.timestamp = new Date().toISOString();
+    this.timestamp = _timestamp || new Date().toISOString();
     this.signature = _signature;
   }
 

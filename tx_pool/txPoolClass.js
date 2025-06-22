@@ -19,21 +19,26 @@ export class TxPoolClass {
         (t) => t.getTransactionId() === tx.getTransactionId()
       )
     ) {
-      throw new Error("Transaction already exists in the pool");
+      //throw new Error("Transaction already exists in the pool");
+      return false; // Skip if the transaction already exists in the pool
     }
-    if (tx.verfiyTransaction()) {
+    if (!tx.verfiyTransaction()) {
       throw new Error("Transaction verification failed");
+      return false; // Transaction verification failed
     }
     this.transactions.push(tx);
+    return true; // Transaction added successfully
   }
 
   addTransactions(_transactions) {
+    const success = true;
     if (!Array.isArray(_transactions)) {
       throw new Error("Transactions must be an array");
     }
     for (const tx of _transactions) {
       if (!(tx instanceof Transaction)) {
         throw new Error("Each transaction must be an instance of Transaction");
+        return false; // Skip if the transaction is not an instance of Transaction
       }
 
       if (
@@ -44,10 +49,13 @@ export class TxPoolClass {
       ) {
         continue; // Skip if the transaction already exists in the pool
       }
-      this.addATransaction(tx);
+      const status = this.addATransaction(tx);
+      success = success && status;
     }
+    return true;
   }
-  getTransactions() {
+
+  getAllTransactions() {
     return this.transactions;
   }
   getNoOfTransactions() {
