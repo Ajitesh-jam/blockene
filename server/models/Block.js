@@ -1,6 +1,6 @@
 // models/Block.js
 
-//import { Block } from "../classes/block.js"; //iske hisab se bana lena
+import { Block } from "../classes/block.js"; //iske hisab se bana lena
 
 export class Block {
   constructor(index, timestamp, data, previousHash, hash) {

@@ -73,9 +73,9 @@ const Initialdata = {
   },
   signature: "c3577ebaa99e7c7c944f0fd7e32caae7216c8a6f2df3dc579c142161ccc9c89e",
 };
-
 // Create witness list instance
 let myWitnessList = new WitnessListOfTxPool(PORT);
+
 // Add witness list data
 addWitnessListToMyWitnessList(
   myWitnessList,
@@ -129,45 +129,6 @@ app.get("/getMyTxPool", (req, res) => {
     res.json(myWitnessList.txPool.getAllTransactions());
   } else {
     res.status(404).send("Transaction pool not found");
-  }
-});
-
-// Endpoint to get the blockchain
-app.get("/getBlockchain", (req, res) => {
-  if (blockchain.length > 0) {
-    res.json(blockchain);
-  } else {
-    res.status(404).send("Blockchain not found");
-  }
-});
-
-app.post("/addBlockToBlockchain", (req, res) => {
-  try {
-    // add all the transactions from the txPool to the block data
-    if (myWitnessList.txPool.getNoOfTransactions() === 0) {
-      return res
-        .status(400)
-        .send("No transactions in the pool to add to block");
-    }
-    const myNewBlock = makeBlockFromTransactions(
-      prevHash,
-      nounce,
-      myWitnessList.txPool.getAllTransactions()
-    );
-    if (!myNewBlock) {
-      return res.status(400).send("Failed to create a new block");
-    }
-
-    // Add the block to the blockchain
-    blockchain.push(myNewBlock);
-    console.log("Block added to blockchain:", myNewBlock);
-    // Update the previous hash and nounce for the next block
-    prevHash = hash(myNewBlock.toString());
-    nounce += 1;
-    res.status(201).send("Block added to blockchain successfully", myNewBlock);
-  } catch (error) {
-    console.error("Error adding block to blockchain:", error);
-    res.status(500).send("Error adding block to blockchain");
   }
 });
 
@@ -394,4 +355,91 @@ app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// Endpoint to get the blockchain
+app.get("/getBlockchain", (req, res) => {
+  if (blockchain.length > 0) {
+    res.json(blockchain);
+  } else {
+    res.status(404).send("Blockchain not found");
+  }
+});
+
+app.get("/getLastBlockFromPolitician", async (req, res) => {
+  try {
+    // Send the block proposal to all politicians
+    const responses = await Promise.all(
+      politicianIpPorts.map((ipPort) =>
+        axios.post(`http://${ipPort}/blocks/latest`, blockProposal)
+      )
+    );
+    console.log("Responses from politicians:", responses);
+  } catch (error) {
+    console.error("Error fetching last block from politicians:", error);
+    res.status(500).send("Error fetching last block from politicians");
+  }
+});
+
+app.post("/addBlockToBlockchain", (req, res) => {
+  try {
+    // add all the transactions from the txPool to the block data
+    if (myWitnessList.txPool.getNoOfTransactions() === 0) {
+      return res
+        .status(400)
+        .send("No transactions in the pool to add to block");
+    }
+    const myNewBlock = makeBlockFromTransactions(
+      prevHash,
+      nounce,
+      myWitnessList.txPool.getAllTransactions()
+    );
+    if (!myNewBlock) {
+      return res.status(400).send("Failed to create a new block");
+    }
+
+    // Add the block to the blockchain
+    blockchain.push(myNewBlock);
+    console.log("Block added to blockchain:", myNewBlock);
+    // Update the previous hash and nounce for the next block
+    prevHash = hash(myNewBlock.toString());
+    nounce += 1;
+    res.status(201).send("Block added to blockchain successfully", myNewBlock);
+  } catch (error) {
+    console.error("Error adding block to blockchain:", error);
+    res.status(500).send("Error adding block to blockchain");
+  }
+});
+
+//proppose Block to politicians
+app.post("/proposeBlockToPoliticians", async (req, res) => {
+  try {
+    if (blockchain.length === 0) {
+      return res.status(400).send("Blockchain is empty, cannot propose block");
+    }
+
+    const lastBlock = blockchain[blockchain.length - 1];
+    const blockData = lastBlock.blockData;
+    const blockHeader = lastBlock.blockHeader;
+
+    // Prepare the block proposal data
+    const blockProposal = {
+      blockData: blockData,
+      blockHeader: blockHeader,
+      proposer: PORT, // Current server's port as the proposer
+    };
+
+    // Send the block proposal to all politicians
+    const responses = await Promise.all(
+      politicianIpPorts.map((ipPort) =>
+        axios.post(`http://${ipPort}/receiveNewBlockProposal`, blockProposal)
+      )
+    );
+
+    console.log("Block proposal sent successfully:", responses);
+    res.status(200).send("Block proposal sent successfully");
+  } catch (error) {
+    console.error("Error proposing block to politicians:", error);
+    res.status(500).send("Error proposing block to politicians");
+  }
 });

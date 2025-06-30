@@ -8,7 +8,8 @@ export class BlockData {
       throw new Error("Transactions must be an array");
     }
     if (_transactions.length === 0) {
-      throw new Error("Transactions array cannot be empty");
+      this.transactions = [];
+      return; // Allow empty transactions array
     }
     for (const transaction of _transactions) {
       if (!(transaction instanceof Transaction)) {

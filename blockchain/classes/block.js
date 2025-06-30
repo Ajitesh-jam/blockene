@@ -1,7 +1,7 @@
 import { BlockHeader } from "./blockHeader.js";
 import { BlockData } from "./blockData.js";
 import { hash, buildMerkleTree } from "../utils/crypto.js";
-
+import { Transaction } from "./transactions.js";
 export class Block {
   header;
   data;
@@ -16,7 +16,6 @@ export class Block {
     this.header = _header;
     this.data = _data;
     this.hash = null;
-
     this.makeMerkleTree();
   }
 
@@ -35,14 +34,60 @@ export class Block {
     });
   }
 
-  verfiy() {
+  verify() {
     //call make merkle tree and compare the hash by merkel tree and this.hash
     const transactions = this.data.getTransactions();
     const leaves = transactions.map((tx) => hash(tx.toString()));
     const merkleRoot = buildMerkleTree(leaves);
-    if (this.hash !== merkleRoot) {
+    const merkelRootHash = hash(this.header.toString() + merkleRoot).toString();
+    if (this.hash !== merkelRootHash) {
       throw new Error("Block hash does not match the Merkle root");
     }
     return true;
   }
+}
+
+export function makeBlockFromData(
+  noOfTransactions,
+  prevHash,
+  nounce,
+  transactions
+) {
+  if (!Array.isArray(transactions)) {
+    throw new Error("Transactions must be an array");
+  }
+  if (transactions.length === 0) {
+    throw new Error("Transactions array cannot be empty");
+  }
+  //make transactions instances of Transaction class if they are not already
+  transactions = transactions.map((tx) => {
+    if (
+      typeof tx !== "object" ||
+      !tx.id ||
+      !tx.sender ||
+      !tx.receiver ||
+      !tx.amount ||
+      !tx.timestamp ||
+      !tx.signature
+    ) {
+      throw new Error(
+        "Each transaction must be an object with id, sender, receiver, amount, timestamp, and signature"
+      );
+    }
+    return new Transaction(
+      tx.id,
+      tx.sender,
+      tx.receiver,
+      tx.amount,
+      tx.signature,
+      tx.timestamp
+    );
+  });
+
+  const blockHeader = new BlockHeader(noOfTransactions, prevHash, nounce);
+  const blockData = new BlockData(transactions);
+  const block = new Block(blockHeader, blockData);
+  console.log("Block created:", block);
+  // block.makeMerkleTree();
+  return block;
 }

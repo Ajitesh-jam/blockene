@@ -1,6 +1,8 @@
 import express from "express";
 import {
-  addBlock,
+  addBlockToBlockchain,
+  addBlockToProposals,
+  getNewBlockProposals,
   getAllBlocks,
   getBlockByIndex,
   getLatestBlock,
@@ -11,7 +13,7 @@ import {
 
 const router = express.Router();
 
-router.post("/blocks", addBlock); // /api/blocks
+// router.post("/blocks", addBlock); // /api/blocks
 router.get("/blocks", getAllBlocks); //   /api/blocks
 router.get("/blocks/:index", getBlockByIndex); // /api/blocks/:index
 router.get("/blocks/latest", getLatestBlock); // /api/blocks/latest
@@ -27,5 +29,9 @@ router.post("/blocks/replace", replaceChain); // /api/blocks/replace
 
 //add delete route for witness list
 // router.delete("/witnessList/:ApproverCitizenid", deleteWitnessList); // /api/witnessList/:ApproverCitizenid -> delete witness list by approverCitizen id
+
+router.post("/addBlockToProposals", addBlockToProposals); // /api/addBlockToProposals
+router.post("/addBlockToBlockchain", addBlockToBlockchain); // /api/addBlockToBlockchain
+router.get("/getNewBlockProposals", getNewBlockProposals); // /api/getNewBlockProposals
 
 export default router;

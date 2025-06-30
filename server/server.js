@@ -18,9 +18,6 @@ app.use("/api", blockRoutes);
 ///////////Ajitesh
 
 import { WitnessListOfTxPool } from "../witness_list/witnessListClass.js";
-import { Transaction } from "../blockchain/classes/transactions.js";
-import { signMsg } from "../blockchain/utils/crypto.js";
-import { Key } from "../blockchain/utils/key.js";
 import { addWitnessListToMyWitnessList } from "../witness_list/witnessListClass.js";
 // let witnessListOfTxPool = new WitnessListOfTxPool(PORT); //this should be array
 let allWitnessLists = [];
@@ -81,6 +78,12 @@ app.post("/addWitnessListToPool", (req, res) => {
     res.status(400).send("Error adding witnessList:", error || "Unknown error");
   }
 });
+
+// Add Block Proposal Endpoint
+// app.post("//");
+
+// endpoints for New Block Proposal
+// app.post("/receiveNewBlockProposal", (req, res) => {});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on http://localhost:${PORT}`);

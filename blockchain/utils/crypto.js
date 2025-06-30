@@ -54,3 +54,22 @@ export function buildMerkleTree(leaves) {
 
   return leaves[0];
 }
+
+export function VRFGenerate(pvt_key, message) {
+  const proof = hash(pvt_key + message); // simulate HMAC using simple concat
+  const randomValue = hash(proof); // hash of proof = random output
+  return { randomValue, proof };
+}
+
+export function VRFVerify(pub_key, message, randomValue, proof) {
+  const recalculatedProof = hash(pub_key + message);
+  if (recalculatedProof !== proof) return false;
+
+  const recalculatedRandom = hash(proof);
+  return recalculatedRandom === randomValue;
+}
+
+export function giveLowHash(hash1, hash2) {
+  // Compare two hashes and return the one that is lexicographically smaller
+  return hash1 > hash2 ? true : false;
+}

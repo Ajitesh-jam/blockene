@@ -1,3 +1,4 @@
+import { Transaction } from "../classes/transactions.js";
 import { Block } from "../classes/block.js";
 import { BlockHeader } from "../classes/blockHeader.js";
 import { BlockData } from "../classes/blockData.js";
@@ -23,14 +24,32 @@ export class Blockchain {
   getLatestBlock() {
     return this.chain[this.chain.length - 1];
   }
+  getLatestHash() {
+    return this.getLatestBlock().hash;
+  }
 
   addBlock(transactions) {
+    console.log("Adding block to blockchain with transactions:", transactions);
     const prevBlock = this.getLatestBlock();
     const header = new BlockHeader(
-      transactions.length,
+      transactions.length(),
       prevBlock.hash,
-      Math.floor(Math.random() * 100000)
+      chain.length + 1
     );
+    //convert transactions from json to Transaction class instances
+    transactions = transactions.map((tx) => {
+      if (!(tx instanceof Transaction)) {
+        return new Transaction(
+          tx.id,
+          tx.from,
+          tx.to,
+          tx.amount,
+          tx.signature,
+          tx.timestamp
+        );
+      }
+      return tx;
+    });
     const data = new BlockData(transactions);
     const block = new Block(header, data);
     block.makeMerkleTree();
