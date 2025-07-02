@@ -359,7 +359,6 @@ app.post("/createTransaction", (req, res) => {
   }
 });
 // Endpoint to get the blockchain
-app.get("/getLatestHashFromPolitician", (req, res) => {
 
 app.get("/getBlockchain", (req, res) => {
   if (blockchain.length > 0) {
