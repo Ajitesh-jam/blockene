@@ -34,6 +34,14 @@ export class Block {
     });
   }
 
+  getBlock() {
+    return JSON.stringify({
+      header: this.header.toString(),
+      data: this.data.toString(),
+      hash: this.hash,
+    });
+  }
+
   verify() {
     //call make merkle tree and compare the hash by merkel tree and this.hash
     const transactions = this.data.getTransactions();
@@ -87,6 +95,7 @@ export function makeBlockFromData(
   const blockHeader = new BlockHeader(noOfTransactions, prevHash, nounce);
   const blockData = new BlockData(transactions);
   const block = new Block(blockHeader, blockData);
+  block.verify(); // Verify the block after creation
   console.log("Block created:", block);
   // block.makeMerkleTree();
   return block;

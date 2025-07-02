@@ -79,11 +79,45 @@ app.post("/addWitnessListToPool", (req, res) => {
   }
 });
 
+app.get("/getAllProposal", (req, res) => {
+  try {
+    // Assuming newBlockProposals is an array of proposals
+    if (newBlockProposals.length === 0) {
+      return res.status(404).send("No proposals found");
+    }
+    res.status(200).json(newBlockProposals);
+  } catch (error) {
+    console.error("Error fetching proposals:", error);
+    res.status(500).send("Error fetching proposals");
+  }
+});
+
 // Add Block Proposal Endpoint
-// app.post("//");
 
 // endpoints for New Block Proposal
 // app.post("/receiveNewBlockProposal", (req, res) => {});
+
+app.get("/checkForBlockFinality", (req, res) => {
+  try {
+    if (newBlockProposals.length === 0) {
+      return res.status(404).send("No proposals found");
+    }
+    const newBlock = newBlockProposals.checkForBlockFinality();
+    if (newBlock) {
+      res.status(200).json({
+        message: "Block finalized successfully",
+        block: newBlock,
+      });
+    } else {
+      res.status(200).json({
+        message: "No block finalized yet",
+      });
+    }
+  } catch (error) {
+    console.error("Error checking for block finality:", error);
+    res.status(500).send("Error checking for block finality");
+  }
+});
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on http://localhost:${PORT}`);

@@ -2,41 +2,55 @@
 import { makeBlockFromData } from "../../blockchain/classes/block.js";
 import { WitnessListOfTxPool } from "../../witness_list/witnessListClass.js";
 import { Blockchain } from "../../blockchain/core/blockchain.js";
+import { NewBlockProposal } from "../classes/newBlockProposal.js";
 let blockchain = new Blockchain(); //initialize blockchain with genesis block
-let newBlockProposals = []; //this will be used to store the new block proposal received from the citizen
+let newBlockProposals = new NewBlockProposal(); //this will be used to store the new block proposal received from the citizen
 
 //ek validate block function bna le jo block ki properties ko check kare
 //call block.verify
 
 let witnessList = []; //array of witness lists ,(element is of type WitnessListClass)
 
-export const addBlockToProposals = (req, res) => {
+export const addNewBlockPropposal = (req, res) => {
   //add logic to validate the block before adding it
   try {
-    const { previousHash, nounce, transactions } = req.body;
-
-    console.log("Adding block to proposals with data:", {
+    const {
+      VRFValue,
+      VRFProof,
+      approverCitizen,
       previousHash,
       nounce,
       transactions,
-    });
-    // Validate the input data
-    const newBlock = makeBlockFromData(
-      transactions.length,
+      signature,
+    } = req.body;
+    if (
+      !VRFValue ||
+      !VRFProof ||
+      !approverCitizen ||
+      !previousHash ||
+      !nounce ||
+      !transactions
+    ) {
+      return res.status(400).json({ message: "Invalid proposal data" });
+    }
+    // Validate transactions
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      return res.status(400).json({ message: "Invalid transactions data" });
+    }
+
+    newBlockProposals.addProposal(
+      VRFValue,
+      VRFProof,
+      approverCitizen,
       previousHash,
       nounce,
-      transactions
+      transactions,
+      signature
     );
-    if (!newBlock) {
-      return res.status(400).json({ message: "Invalid block data" });
-    }
-    // Validate the block
-    if (!newBlock.verify()) {
-      return res.status(400).json({ message: "Block verification failed" });
-    }
-    // Add block to newBlockProposals
-    newBlockProposals.push(newBlock);
-    res.status(201).json(newBlock);
+    res.status(201).json({
+      message: "New block proposal added successfully",
+      proposal: newBlockProposals.getProposalByVRFValue(VRFValue),
+    });
   } catch (error) {
     console.error("Error adding block to proposals:", error);
     res
@@ -54,6 +68,18 @@ export const addBlockToBlockchain = (req, res) => {
   res.status(201).json({
     message: "Block added to blockchain",
     block: blockchain.getLatestBlock(),
+  });
+};
+
+export const addSignatureToProposal = (req, res) => {
+  const { signature, block, approverCitizen } = req.body;
+  if (!signature || !approverCitizen || !block) {
+    return res.status(400).json({ message: "Invalid signature data" });
+  }
+  newBlockProposals.addSignatureToProposal(block, approverCitizen, signature);
+  res.status(200).json({
+    message: "Signature added to proposal",
+    proposal: newBlockProposals.getProposalByBlockHash(block.hash),
   });
 };
 
@@ -121,5 +147,3 @@ export const getBlockchain = () => blockchain; //yeh kyu hai? Is it used somewhe
 export const setBlockchain = (newChain) => {
   blockchain = newChain;
 };
-
-//add witness list related functions bhi

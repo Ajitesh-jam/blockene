@@ -22,6 +22,7 @@ import {
 import { Key } from "../blockchain/utils/key.js";
 
 import { makeBlockFromTransactions } from "../blockchain/core/blockMethods.js";
+import { VRFGenerate } from "../blockchain/utils/crypto.js";
 
 const app = express();
 app.use(bodyParser.json());
@@ -87,6 +88,8 @@ addWitnessListToMyWitnessList(
 myWitnessList.approverCitizen = Number(PORT); // Set the approver citizen to the current port
 myWitnessList.signature = null;
 
+// function proposeMsgToPolitician(){}
+
 app.get("/getWitnessList", async (req, res) => {
   try {
     const responses = await Promise.all(
@@ -138,46 +141,6 @@ app.get("/getMyWitnessList", (req, res) => {
     res.json(myWitnessList.getWitnessList());
   } else {
     res.status(404).send("Witness list not found");
-  }
-});
-
-app.post("/createTransaction", (req, res) => {
-  try {
-    const { tx_id, senderPublicKey, senderPvtKey, receiver, amount } = req.body;
-    if (!senderPublicKey || !senderPvtKey || !receiver || !amount) {
-      return res.status(400).send("Invalid transaction data");
-    }
-    const txId =
-      tx_id.toString() +
-      ":" +
-      senderPublicKey.toString() +
-      ":" +
-      receiver.toString() +
-      ":" +
-      amount;
-
-    // Create a new transaction
-    const transaction = new Transaction(
-      tx_id, // Unique ID for the transaction
-      senderPublicKey,
-      receiver,
-      amount,
-      signMsg(senderPvtKey, txId) // Sign the transaction with the sender's private key
-    );
-
-    const status = myWitnessList.txPool.addATransaction(transaction);
-    if (!status) {
-      return res.status(400).send("Transaction already exists in the pool");
-    }
-
-    // Verify the transaction
-    if (!transaction.verfiyTransaction()) {
-      return res.status(400).send("Transaction verification failed");
-    }
-    res.status(201).send("Transaction created successfully");
-  } catch (error) {
-    console.error("Error creating transaction:", error);
-    res.status(500).send("Error creating transaction");
   }
 });
 
@@ -353,11 +316,51 @@ app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+app.post("/createTransaction", (req, res) => {
+  try {
+    const { tx_id, senderPvtKey, receiver, amount } = req.body;
+    if (!senderPublicKey || !senderPvtKey || !receiver || !amount) {
+      return res.status(400).send("Invalid transaction data");
+    }
+    const txId =
+      tx_id.toString() +
+      ":" +
+      senderPublicKey.toString() +
+      ":" +
+      receiver.toString() +
+      ":" +
+      amount;
 
+    const keypair = new Key(senderPvtKey, senderPvtKey);
+    const senderPublicKey = keypair.getPubKey();
+
+    // Create a new transaction
+    const transaction = new Transaction(
+      tx_id, // Unique ID for the transaction
+      senderPublicKey,
+      receiver,
+      amount,
+      signMsg(senderPvtKey, txId) // Sign the transaction with the sender's private key
+    );
+
+    const status = myWitnessList.txPool.addATransaction(transaction);
+    if (!status) {
+      return res.status(400).send("Transaction already exists in the pool");
+    }
+
+    // Verify the transaction
+    if (!transaction.verfiyTransaction()) {
+      return res.status(400).send("Transaction verification failed");
+    }
+    res.status(201).send("Transaction created successfully");
+  } catch (error) {
+    console.error("Error creating transaction:", error);
+    res.status(500).send("Error creating transaction");
+  }
+});
 // Endpoint to get the blockchain
+app.get("/getLatestHashFromPolitician", (req, res) => {
+
 app.get("/getBlockchain", (req, res) => {
   if (blockchain.length > 0) {
     res.json(blockchain);
@@ -414,32 +417,115 @@ app.post("/addBlockToBlockchain", (req, res) => {
 //proppose Block to politicians
 app.post("/proposeBlockToPoliticians", async (req, res) => {
   try {
-    if (blockchain.length === 0) {
-      return res.status(400).send("Blockchain is empty, cannot propose block");
+    const { pvtKey } = req.body;
+    const block = blockchain[blockchain.length - 1]; // Get the last block from the blockchain
+    if (!block) {
+      return res.status(400).send("No block available to propose");
     }
-
-    const lastBlock = blockchain[blockchain.length - 1];
-    const blockData = lastBlock.blockData;
-    const blockHeader = lastBlock.blockHeader;
-
-    // Prepare the block proposal data
-    const blockProposal = {
-      blockData: blockData,
-      blockHeader: blockHeader,
-      proposer: PORT, // Current server's port as the proposer
-    };
-
-    // Send the block proposal to all politicians
-    const responses = await Promise.all(
-      politicianIpPorts.map((ipPort) =>
-        axios.post(`http://${ipPort}/receiveNewBlockProposal`, blockProposal)
-      )
+    const keypair = new Key(pvtKey, pvtKey);
+    const VRF = VRFGenerate(keypair.pvtKey, block.getBlock());
+    const VRFValue = VRF.value;
+    const VRFProof = VRF.proof;
+    const signature = signMsg(keypair.pvtKey, block.getBlock());
+    const approverCitizen = keypair.pubKey;
+    console.log(
+      "Proposing block to politicians with VRFValue:",
+      VRFValue,
+      "and VRFProof:",
+      VRFProof
     );
-
-    console.log("Block proposal sent successfully:", responses);
-    res.status(200).send("Block proposal sent successfully");
+    // Send the block proposal to all politicians
+    for (const ipPort of politicianIpPorts) {
+      try {
+        const response = await axios.post(`http://${ipPort}/addNewProposal`, {
+          VRFValue,
+          VRFProof,
+          approverCitizen,
+          block: block.getBlock(),
+          signature,
+        });
+        console.log(
+          `Block proposal sent to ${ipPort} successfully:`,
+          response.data
+        );
+      } catch (error) {
+        console.error(
+          `Error proposing block to ${ipPort}:`,
+          error.response?.data || error.message
+        );
+      }
+    }
   } catch (error) {
     console.error("Error proposing block to politicians:", error);
     res.status(500).send("Error proposing block to politicians");
   }
+});
+
+app.get("/getProposalsFromPolitician", async (req, res) => {
+  try {
+    const responses = await Promise.all(
+      politicianIpPorts.map((ipPort) =>
+        axios.get(`http://${ipPort}/getNewBlockProposals`)
+      )
+    );
+    const allProposals = responses.flatMap((response) => response.data);
+    if (allProposals.length === 0) {
+      return res.status(404).send("No proposals found");
+    }
+    console.log("Proposals fetched successfully:", allProposals);
+    res.json("All the proposals: ", allProposals);
+  } catch (error) {
+    console.error("Error fetching proposals:", error);
+    res.status(500).send("Error fetching proposals");
+  }
+});
+
+app.post("/signBlockProposal", async (req, res) => {
+  try {
+    const { pvtKey, approverCitizen, block } = req.body;
+    if (!pvtKey || !approverCitizen || !block) {
+      return res.status(400).send("Invalid proposal data");
+    }
+    const keypair = new Key(pvtKey, pvtKey);
+    const signature = signMsg(keypair.pvtKey, block.getBlock());
+    block = new Block(
+      new BlockHeader(
+        block.header.noOfTransactions,
+        block.header.previousHash,
+        block.header.nounce
+      ),
+      new BlockData(block.data.transactions)
+    );
+
+    // Send the signed proposal to all politicians
+    for (const ipPort of politicianIpPorts) {
+      try {
+        const response = await axios.post(
+          `http://${ipPort}/addSignatureToProposal`,
+          {
+            block,
+            approverCitizen,
+            signature,
+          }
+        );
+        console.log(
+          `Block proposal signed and sent to ${ipPort} successfully:`,
+          response.data
+        );
+      } catch (error) {
+        console.error(
+          `Error signing and proposing block to ${ipPort}:`,
+          error.response?.data || error.message
+        );
+      }
+    }
+    res.status(200).send("Block proposal signed and sent successfully");
+  } catch (error) {
+    console.error("Error signing block proposal:", error);
+    res.status(500).send("Error signing block proposal");
+  }
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });

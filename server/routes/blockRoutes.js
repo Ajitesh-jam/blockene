@@ -1,7 +1,8 @@
 import express from "express";
 import {
   addBlockToBlockchain,
-  addBlockToProposals,
+  addNewBlockPropposal,
+  addSignatureToProposal,
   getNewBlockProposals,
   getAllBlocks,
   getBlockByIndex,
@@ -30,8 +31,9 @@ router.post("/blocks/replace", replaceChain); // /api/blocks/replace
 //add delete route for witness list
 // router.delete("/witnessList/:ApproverCitizenid", deleteWitnessList); // /api/witnessList/:ApproverCitizenid -> delete witness list by approverCitizen id
 
-router.post("/addBlockToProposals", addBlockToProposals); // /api/addBlockToProposals
+router.post("/addNewProposal", addNewBlockPropposal); // /api/addBlockToProposals
 router.post("/addBlockToBlockchain", addBlockToBlockchain); // /api/addBlockToBlockchain
+router.post("/addSignatureToProposal", addSignatureToProposal); // /api/addSignatureToProposal
 router.get("/getNewBlockProposals", getNewBlockProposals); // /api/getNewBlockProposals
 
 export default router;

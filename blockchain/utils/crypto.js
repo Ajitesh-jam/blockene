@@ -58,7 +58,7 @@ export function buildMerkleTree(leaves) {
 export function VRFGenerate(pvt_key, message) {
   const proof = hash(pvt_key + message); // simulate HMAC using simple concat
   const randomValue = hash(proof); // hash of proof = random output
-  return { randomValue, proof };
+  return { value: randomValue, proof: proof };
 }
 
 export function VRFVerify(pub_key, message, randomValue, proof) {
