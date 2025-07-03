@@ -28,8 +28,7 @@ export class Blockchain {
     return this.getLatestBlock().hash;
   }
 
-  addBlock(transactions) {
-    console.log("Adding block to blockchain with transactions:", transactions);
+  addBlockByTransactions(transactions) {
     const prevBlock = this.getLatestBlock();
     const header = new BlockHeader(
       transactions.length(),
@@ -53,6 +52,15 @@ export class Blockchain {
     const data = new BlockData(transactions);
     const block = new Block(header, data);
     block.makeMerkleTree();
+    this.chain.push(block);
+  }
+  addBlock(block) {
+    if (!(block instanceof Block)) {
+      throw new Error("Block must be an instance of Block class");
+    }
+    if (!block.verify()) {
+      throw new Error("Block verification failed");
+    }
     this.chain.push(block);
   }
 

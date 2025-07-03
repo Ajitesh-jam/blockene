@@ -256,7 +256,7 @@ export function addWitnessListToMyWitnessList(
       txn.signature,
       txn.timestamp
     );
-    if (!transaction.verfiyTransaction())
+    if (!transaction.verifyTransaction())
       throw Error("Transaction not  verified!");
 
     txPoolData.addATransaction(transaction);
@@ -317,7 +317,7 @@ export function addWitnessesToMyWitnessList(
       txn.signature,
       txn.timestamp
     );
-    if (!transaction.verfiyTransaction())
+    if (!transaction.verifyTransaction())
       // verify each transaction
       throw Error("Transaction not  verified!");
 

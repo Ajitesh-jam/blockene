@@ -22,7 +22,7 @@ export class TxPoolClass {
       //throw new Error("Transaction already exists in the pool");
       return false; // Skip if the transaction already exists in the pool
     }
-    if (!tx.verfiyTransaction()) {
+    if (!tx.verifyTransaction()) {
       throw new Error("Transaction verification failed");
       return false; // Transaction verification failed
     }
@@ -45,7 +45,7 @@ export class TxPoolClass {
         this.transactions.find(
           (t) => t.getTransactionId() === tx.getTransactionId()
         ) ||
-        tx.verfiyTransaction()
+        tx.verifyTransaction()
       ) {
         continue; // Skip if the transaction already exists in the pool
       }

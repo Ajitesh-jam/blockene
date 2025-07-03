@@ -11,11 +11,20 @@ export class BlockData {
       this.transactions = [];
       return; // Allow empty transactions array
     }
-    for (const transaction of _transactions) {
-      if (!(transaction instanceof Transaction)) {
-        throw new Error("Each transaction must be an instance of Transaction");
+    //make transactions instances of Transaction class if they are not already
+    this.transactions = _transactions.map((tx) => {
+      if (!(tx instanceof Transaction)) {
+        return new Transaction(
+          tx.id,
+          tx.sender,
+          tx.receiver,
+          tx.amount,
+          tx.signature,
+          tx.timestamp
+        );
       }
-    }
+      return tx;
+    });
     this.transactions = _transactions;
   }
   toString() {
@@ -34,7 +43,7 @@ export class BlockData {
   }
   verifyTransactions() {
     for (const transaction of this.transactions) {
-      if (!transaction.verfiyTransaction()) {
+      if (!transaction.verifyTransaction()) {
         console.error(
           "Transaction verification failed for transaction:",
           transaction.id

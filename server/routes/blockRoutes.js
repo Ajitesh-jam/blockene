@@ -4,6 +4,8 @@ import {
   addNewBlockPropposal,
   addSignatureToProposal,
   getNewBlockProposals,
+  getAllProposals,
+  checkForBlockFinality,
   getAllBlocks,
   getBlockByIndex,
   getLatestBlock,
@@ -16,8 +18,8 @@ const router = express.Router();
 
 // router.post("/blocks", addBlock); // /api/blocks
 router.get("/blocks", getAllBlocks); //   /api/blocks
-router.get("/blocks/:index", getBlockByIndex); // /api/blocks/:index
 router.get("/blocks/latest", getLatestBlock); // /api/blocks/latest
+// router.get("/blocks/:index", getBlockByIndex); // /api/blocks/:index
 router.get("/blocks/latest/hash", getLatestHash); // /api/blocks/latest/hash
 router.get("/blocks/last/:n", getNBlocks); // /api/blocks/last/:n
 router.post("/blocks/replace", replaceChain); // /api/blocks/replace
@@ -35,5 +37,7 @@ router.post("/addNewProposal", addNewBlockPropposal); // /api/addBlockToProposal
 router.post("/addBlockToBlockchain", addBlockToBlockchain); // /api/addBlockToBlockchain
 router.post("/addSignatureToProposal", addSignatureToProposal); // /api/addSignatureToProposal
 router.get("/getNewBlockProposals", getNewBlockProposals); // /api/getNewBlockProposals
+router.get("/getAllProposals", getAllProposals); // /api/getAllProposals
+router.get("/checkForBlockFinality", checkForBlockFinality); // /api/check
 
 export default router;

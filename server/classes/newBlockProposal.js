@@ -5,12 +5,14 @@ import { Transaction } from "../../blockchain/classes/transactions.js";
 import { THRESHOLD_CONSENSUS_FOR_BLOCK_FINALITY } from "../../constants/const.js";
 import { VRFVerify } from "../../blockchain/utils/crypto.js";
 import { verifySignature } from "../../blockchain/utils/crypto.js";
+import { makeBlockFromTransactions } from "../../blockchain/core/blockMethods.js";
 export class signatureClass {
   signature; //signature is a string
   citizen; //citizen is a string
   constructor(signature, citizen) {
     if (typeof signature !== "string" || typeof citizen !== "string") {
-      throw new Error("Signature and citizen must be strings");
+      // throw new Error("Signature and citizen must be strings");
+      console.log("Signature and citizen ", signature, citizen);
     }
     this.signature = signature;
     this.citizen = citizen; //string
@@ -98,32 +100,12 @@ export class NewBlockProposal {
       console.log("VRFValue already used in a proposal:", VRFValue);
       return null; // VRFValue already used in a proposal
     }
-    if (!Array.isArray(transactions) || transactions.length === 0) {
-      throw new Error("Transactions must be a non-empty array");
-    }
-    transactions = transactions.map((tx) => {
-      if (!(tx instanceof Transaction)) {
-        return new Transaction(
-          tx.id,
-          tx.sender,
-          tx.receiver,
-          tx.amount,
-          tx.signature,
-          tx.timestamp
-        );
-      }
-      return tx;
-    });
 
-    const newBlockHeader = new BlockHeader(
-      transactions.length,
+    const newBlock = makeBlockFromTransactions(
       previousHash,
-      nounce
+      nounce,
+      transactions
     );
-    const newBlockData = new BlockData(transactions);
-    const newBlock = new Block(newBlockHeader, newBlockData);
-
-    console.log("New block created:", newBlock);
 
     if (!VRFVerify(approverCitizen, newBlock.getBlock(), VRFValue, VRFProof)) {
       new Error("VRFValue verification failed");
@@ -147,27 +129,34 @@ export class NewBlockProposal {
     this.GotVRFValues.push(VRFValue); // add VRFValue to the list of used VRFValues
     //better to add in sorted order but for now just push it
     this.proposals.push(proposal);
-    proposal.addSignature(new signatureClass(signature, approverCitizen));
-    console.log("New proposal added:", proposal);
+    console.log("Proposal added:", proposal);
     return proposal;
   }
 
   addSignatureToProposal(block, approverCitizen, signature) {
     //if block is not instance of Block class make it an instance of Block class
+    console.log("khuch kar");
     if (!(block instanceof Block)) {
-      const newBlockHeader = new BlockHeader(
-        block.header.noOfTransactions,
-        block.header.previousHash,
-        block.header.nounce
+      block = makeBlockFromTransactions(
+        block.header.prevHash,
+        block.header.nounce,
+        block.data.transactions
       );
-      const newBlockData = new BlockData(block.data.transactions);
-      block = new Block(newBlockHeader, newBlockData);
       block.verify();
+      console.log("siging :\n\n", block.getBlock(), "\n\nby ", approverCitizen);
       if (!verifySignature(approverCitizen, block.getBlock(), signature)) {
-        new Error("signature verification failed");
-        return null; // VRFProof verification failed
+        console.log("Signature verification failed for block:", block);
+        throw new Error("signature verification failed");
       }
     }
+    console.log(
+      "Adding signature to proposal for block:",
+      block,
+      " by citizen:",
+      approverCitizen,
+      " with signature:",
+      signature
+    );
     // Find the proposal with the matching block hash
     const proposal = this.getProposalByBlockHash(block.hash);
     if (!proposal) {
@@ -255,13 +244,6 @@ export class NewBlockProposal {
       maxSignatureProposal.getNumberOfSignatures() >
       THRESHOLD_CONSENSUS_FOR_BLOCK_FINALITY
     ) {
-      console.log(
-        "Block finality achieved with proposal:",
-        maxSignatureProposal,
-        " with signatures:",
-        maxSignatureProposal.getNumberOfSignatures(),
-        " Clearing All the proposals proposals."
-      );
       // Clear the proposals after adding the block to the blockchain
       this.clearProposals();
       return maxSignatureProposal;

@@ -62,7 +62,7 @@ export class Transaction {
     return this.id;
   }
 
-  verfiyTransaction() {
+  verifyTransaction() {
     // Here we would implement the logic to verify the transaction signature
     // For now, we will just return true as a placeholder
 

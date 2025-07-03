@@ -349,7 +349,7 @@ app.post("/createTransaction", (req, res) => {
     }
 
     // Verify the transaction
-    if (!transaction.verfiyTransaction()) {
+    if (!transaction.verifyTransaction()) {
       return res.status(400).send("Transaction verification failed");
     }
     res.status(201).send("Transaction created successfully");
@@ -359,6 +359,22 @@ app.post("/createTransaction", (req, res) => {
   }
 });
 // Endpoint to get the blockchain
+app.get("/getLatestHashFromPolitician", async (req, res) => {
+  try {
+    // Send the block proposal to all politicians
+    const responses = await Promise.all(
+      politicianIpPorts.map((ipPort) =>
+        axios.get(`http://${ipPort}/api/blocks/latest/hash`)
+      )
+    );
+    const latestHashes = responses.map((response) => response.data.hash);
+    prevHash = latestHashes[0]; // ------------------------------------------------------------>
+    res.json(latestHashes);
+  } catch (error) {
+    console.error("Error fetching latest hash from politicians:", error);
+    res.status(500).send("Error fetching latest hash from politicians", error);
+  }
+});
 
 app.get("/getBlockchain", (req, res) => {
   if (blockchain.length > 0) {
@@ -373,10 +389,23 @@ app.get("/getLastBlockFromPolitician", async (req, res) => {
     // Send the block proposal to all politicians
     const responses = await Promise.all(
       politicianIpPorts.map((ipPort) =>
-        axios.post(`http://${ipPort}/blocks/latest`, blockProposal)
+        axios.get(`http://${ipPort}/api/blocks/latest`)
       )
     );
     console.log("Responses from politicians:", responses);
+    const lastBlocks = responses.map((response) => response.data);
+    if (lastBlocks.length === 0) {
+      return res.status(404).send("No blocks found from politicians");
+    }
+    console.log("Last blocks fetched successfully:", lastBlocks);
+    // Assuming the last block is the most recent one
+    const block = lastBlocks[0];
+    if (!block) {
+      return res.status(404).send("No last block found");
+    }
+    blockchain.push(block); // Add the last block to the local blockchain
+    prevHash = block.hash; // Update the previous hash
+    res.json(blockchain);
   } catch (error) {
     console.error("Error fetching last block from politicians:", error);
     res.status(500).send("Error fetching last block from politicians");
@@ -391,6 +420,11 @@ app.post("/addBlockToBlockchain", (req, res) => {
         .status(400)
         .send("No transactions in the pool to add to block");
     }
+    console.log(
+      "Adding block to blockchain with transactions:",
+      myWitnessList.txPool.getAllTransactions()
+    );
+    console.log("Previous hash:", prevHash);
     const myNewBlock = makeBlockFromTransactions(
       prevHash,
       nounce,
@@ -427,22 +461,19 @@ app.post("/proposeBlockToPoliticians", async (req, res) => {
     const VRFProof = VRF.proof;
     const signature = signMsg(keypair.pvtKey, block.getBlock());
     const approverCitizen = keypair.pubKey;
-    console.log(
-      "Proposing block to politicians with VRFValue:",
-      VRFValue,
-      "and VRFProof:",
-      VRFProof
-    );
     // Send the block proposal to all politicians
     for (const ipPort of politicianIpPorts) {
       try {
-        const response = await axios.post(`http://${ipPort}/addNewProposal`, {
-          VRFValue,
-          VRFProof,
-          approverCitizen,
-          block: block.getBlock(),
-          signature,
-        });
+        const response = await axios.post(
+          `http://${ipPort}/api/addNewProposal`,
+          {
+            VRFValue,
+            VRFProof,
+            approverCitizen,
+            block: block,
+            signature,
+          }
+        );
         console.log(
           `Block proposal sent to ${ipPort} successfully:`,
           response.data
@@ -452,8 +483,13 @@ app.post("/proposeBlockToPoliticians", async (req, res) => {
           `Error proposing block to ${ipPort}:`,
           error.response?.data || error.message
         );
+        res
+          .status(500)
+          .send(`Error proposing block to ${ipPort}: ${error.message}`);
+        return; // Exit if any proposal fails
       }
     }
+    res.status(200).send("Block proposed to politicians successfully");
   } catch (error) {
     console.error("Error proposing block to politicians:", error);
     res.status(500).send("Error proposing block to politicians");
@@ -471,7 +507,6 @@ app.get("/getProposalsFromPolitician", async (req, res) => {
     if (allProposals.length === 0) {
       return res.status(404).send("No proposals found");
     }
-    console.log("Proposals fetched successfully:", allProposals);
     res.json("All the proposals: ", allProposals);
   } catch (error) {
     console.error("Error fetching proposals:", error);
@@ -481,30 +516,29 @@ app.get("/getProposalsFromPolitician", async (req, res) => {
 
 app.post("/signBlockProposal", async (req, res) => {
   try {
-    const { pvtKey, approverCitizen, block } = req.body;
+    const { pvtKey, block } = req.body;
+    const keypair = new Key(pvtKey, pvtKey);
+    const approverCitizen = keypair.getPubKey();
     if (!pvtKey || !approverCitizen || !block) {
       return res.status(400).send("Invalid proposal data");
     }
-    const keypair = new Key(pvtKey, pvtKey);
-    const signature = signMsg(keypair.pvtKey, block.getBlock());
-    block = new Block(
-      new BlockHeader(
-        block.header.noOfTransactions,
-        block.header.previousHash,
-        block.header.nounce
-      ),
-      new BlockData(block.data.transactions)
+
+    const blockIns = makeBlockFromTransactions(
+      block.header.prevHash,
+      block.header.nounce,
+      block.data.transactions
     );
+    const signature = signMsg(keypair.pvtKey, blockIns.getBlock());
 
     // Send the signed proposal to all politicians
     for (const ipPort of politicianIpPorts) {
       try {
         const response = await axios.post(
-          `http://${ipPort}/addSignatureToProposal`,
+          `http://${ipPort}/api/addSignatureToProposal`,
           {
-            block,
-            approverCitizen,
             signature,
+            block: blockIns,
+            approverCitizen,
           }
         );
         console.log(
@@ -516,6 +550,11 @@ app.post("/signBlockProposal", async (req, res) => {
           `Error signing and proposing block to ${ipPort}:`,
           error.response?.data || error.message
         );
+        res
+          .status(500)
+          .send(
+            `Error signing and proposing block to ${ipPort}: ${error.message}`
+          );
       }
     }
     res.status(200).send("Block proposal signed and sent successfully");
