@@ -96,7 +96,6 @@ export function makeBlockFromData(
   const blockData = new BlockData(transactions);
   const block = new Block(blockHeader, blockData);
   block.verify(); // Verify the block after creation
-  console.log("Block created:", block);
   // block.makeMerkleTree();
   return block;
 }

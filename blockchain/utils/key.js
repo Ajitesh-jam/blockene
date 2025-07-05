@@ -1,7 +1,7 @@
 import { signMsg, verifyTransactionDoneByPubKey } from "../utils/crypto.js";
 
 export class Key {
-  constructor(_pvtKey, _pubKey) {
+  constructor(_pvtKey, _pubKey = _pvtKey) {
     this.pvtKey = _pvtKey;
     this.pubKey = _pubKey;
   }

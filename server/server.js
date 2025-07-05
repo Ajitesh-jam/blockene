@@ -22,7 +22,7 @@ import { addWitnessListToMyWitnessList } from "../witness_list/witnessListClass.
 // let witnessListOfTxPool = new WitnessListOfTxPool(PORT); //this should be array
 let allWitnessLists = [];
 
-app.get("/getAllWitnessList", (req, res) => {
+app.get("/api/getAllWitnessList", (req, res) => {
   let allWitnessListJsonObj = [];
   try {
     for (const witness of allWitnessLists) {
@@ -41,7 +41,7 @@ app.get("/getAllWitnessList", (req, res) => {
   }
 });
 
-app.post("/addWitnessListToPool", (req, res) => {
+app.post("/api/addWitnessListToPool", (req, res) => {
   try {
     const { witnessList } = req.body;
     if (allWitnessLists.includes(witnessList))

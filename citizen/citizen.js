@@ -102,7 +102,6 @@ app.get("/getWitnessList", async (req, res) => {
     // if (new Set(witnessLists).size !== 1) {
     //   return res.status(500).send("Witness lists do not match");
     // }
-    console.log("Witness lists fetched successfully:", witnessLists);
     witnessList = witnessLists[0];
     res.json(witnessList);
   } catch (error) {
@@ -146,17 +145,14 @@ app.get("/getMyWitnessList", (req, res) => {
 
 app.post("/signWitnessList", (req, res) => {
   try {
-    const { approverCitizen, pvtKey } = req.body;
-    if (!approverCitizen || !pvtKey) {
-      return res.status(400).send("Invalid witness list data");
-    }
-    const key = new Key(pvtKey, approverCitizen);
+    const { pvtKey } = req.body;
+    const key = new Key(pvtKey, pvtKey);
     // Sign the witness list
     myWitnessList.signWitnessList(key);
     res.status(200).send("Witness list signed successfully");
   } catch (error) {
     console.error("Error signing witness list:", error);
-    res.status(500).send("Error signing witness list");
+    res.status(500).send("Error signing witness list :", error);
   }
 });
 
@@ -194,13 +190,6 @@ app.post("/addWitnessesFromOtherWitnessListToMyWitnessList", (req, res) => {
     ) {
       return res.status(400).send("Invalid witness list data");
     }
-    console.log(
-      "Adding witness list:",
-      approverCitizen,
-      txPool,
-      witnessesOfEachTransactions,
-      signature
-    );
     // Add the witness list to my witness list
     addWitnessesToMyWitnessList(
       myWitnessList,
@@ -239,11 +228,7 @@ app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
   try {
     const sharePromises = politicianIpPorts.map(async (ipPort) => {
       try {
-        // Get the witness list data - handle Map or Object appropriately
         const witnessList = myWitnessList.witnessesOfEachTransactions;
-        console.log(`Sharing witness list with ${ipPort}:`, witnessList);
-
-        // Format witness data properly depending on its type
         let witnessMap = new Map();
         if (witnessList instanceof Map) {
           // Handle if it's a Map
@@ -274,8 +259,10 @@ app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
           witnessesOfEachTransactions: Object.fromEntries(witnessMap), // Convert Map to Object for JSON serialization
           signature: myWitnessList.signature,
         };
-
-        // Send data - let axios handle the JSON conversion
+        console.log(
+          `Sharing witness list with ${ipPort} with data:`,
+          formattedWitnessList
+        );
         const response = await axios.post(
           `http://${ipPort}/addWitnessListToPool`,
           {
@@ -358,6 +345,7 @@ app.post("/createTransaction", (req, res) => {
     res.status(500).send("Error creating transaction");
   }
 });
+
 // Endpoint to get the blockchain
 app.get("/getLatestHashFromPolitician", async (req, res) => {
   try {
@@ -392,16 +380,21 @@ app.get("/getLastBlockFromPolitician", async (req, res) => {
         axios.get(`http://${ipPort}/api/blocks/latest`)
       )
     );
-    console.log("Responses from politicians:", responses);
     const lastBlocks = responses.map((response) => response.data);
     if (lastBlocks.length === 0) {
       return res.status(404).send("No blocks found from politicians");
     }
-    console.log("Last blocks fetched successfully:", lastBlocks);
     // Assuming the last block is the most recent one
     const block = lastBlocks[0];
     if (!block) {
       return res.status(404).send("No last block found");
+    }
+    //check if the block is already in the blockchain
+    if (blockchain.length > 0) {
+      const lastBlock = blockchain[blockchain.length - 1];
+      if (lastBlock.hash === block.hash) {
+        return res.status(200).send(blockchain);
+      }
     }
     blockchain.push(block); // Add the last block to the local blockchain
     prevHash = block.hash; // Update the previous hash
@@ -414,21 +407,16 @@ app.get("/getLastBlockFromPolitician", async (req, res) => {
 
 app.post("/addBlockToBlockchain", (req, res) => {
   try {
-    // add all the transactions from the txPool to the block data
-    if (myWitnessList.txPool.getNoOfTransactions() === 0) {
-      return res
-        .status(400)
-        .send("No transactions in the pool to add to block");
+    const transactionsWithThresholdWitness =
+      myWitnessList.getTransactionsWithThresholdWitness();
+    if (transactionsWithThresholdWitness.length === 0) {
+      return res.status(400).send("No transactions with sufficient witnesses");
     }
-    console.log(
-      "Adding block to blockchain with transactions:",
-      myWitnessList.txPool.getAllTransactions()
-    );
-    console.log("Previous hash:", prevHash);
+
     const myNewBlock = makeBlockFromTransactions(
       prevHash,
       nounce,
-      myWitnessList.txPool.getAllTransactions()
+      transactionsWithThresholdWitness
     );
     if (!myNewBlock) {
       return res.status(400).send("Failed to create a new block");
@@ -436,7 +424,6 @@ app.post("/addBlockToBlockchain", (req, res) => {
 
     // Add the block to the blockchain
     blockchain.push(myNewBlock);
-    console.log("Block added to blockchain:", myNewBlock);
     // Update the previous hash and nounce for the next block
     prevHash = hash(myNewBlock.toString());
     nounce += 1;
@@ -541,10 +528,10 @@ app.post("/signBlockProposal", async (req, res) => {
             approverCitizen,
           }
         );
-        console.log(
-          `Block proposal signed and sent to ${ipPort} successfully:`,
-          response.data
-        );
+        // console.log(
+        //   `Block proposal signed and sent to ${ipPort} successfully:`,
+        //   response.data
+        // );
       } catch (error) {
         console.error(
           `Error signing and proposing block to ${ipPort}:`,

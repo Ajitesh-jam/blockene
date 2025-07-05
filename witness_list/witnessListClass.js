@@ -2,6 +2,8 @@ import { TxPoolClass } from "../tx_pool/txPoolClass.js";
 import { signMsg, verifySignature } from "../blockchain/utils/crypto.js";
 import { Key } from "../blockchain/utils/key.js";
 import { Transaction } from "../blockchain/classes/transactions.js";
+import { THRESHOLD_WITNESSES } from "../constants/const.js";
+import { signatureClass } from "../blockchain/utils/signatureClass.js";
 
 /// WitnessListOfTxPool class represents a list of transactions in the pool
 /// along with the witnesses for each transaction.
@@ -14,31 +16,9 @@ import { Transaction } from "../blockchain/classes/transactions.js";
 // // txPool is the transaction pool containing the transactions
 // // witnessesOfEachTransactions is a map where the key is the transaction ID and the value
 // // is an array of public keys of witnesses for that transaction
-// it gives signature which confirms
+// it gives signature array which confirms
 //  (approverCitizen + txpool + witnessesOfEachTransactions)
 // signed by approverCitizen
-
-export function makeDataToSign(
-  approverCitizen,
-  txPool,
-  witnessesOfEachTransactions
-) {
-  if (!approverCitizen || !txPool || !witnessesOfEachTransactions) {
-    throw new Error("All parameters are required to create data to sign");
-  }
-  const txPoolData = txPool.transactions.map((tx) => tx.toString());
-  if (txPoolData.length === 0) {
-    throw new Error("No transactions to sign in the witness list");
-  }
-  // Create a string representation of the transactions for signing
-  const transactionsString = txPoolData.join(",");
-  const witnessesString = Array.from(witnessesOfEachTransactions.entries())
-    .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
-    .join(";");
-  const data =
-    approverCitizen + ":" + transactionsString + ":" + witnessesString;
-  return data;
-}
 
 export class WitnessListOfTxPool {
   // List of transactions in the pool
@@ -71,7 +51,6 @@ export class WitnessListOfTxPool {
     // if (this.signature === null) {
     //   throw new Error("Witness list has not been signed yet");
     // }
-    console.log("Witness list:", this.toString());
 
     const witnessesOfEachTransactionsObj = {};
     this.witnessesOfEachTransactions.forEach((witnesses, txId) => {
@@ -132,30 +111,59 @@ export class WitnessListOfTxPool {
 
   addATransaction(tx) {
     this.signature = null;
+    //add this to witness list with approver citizen as witness
+    if (!(tx instanceof Transaction)) {
+      tx = new Transaction(
+        tx.id,
+        tx.sender,
+        tx.receiver,
+        tx.amount,
+        tx.signature,
+        tx.timestamp
+      );
+    }
     return this.txPool.addATransaction(tx); //transaction instance + duplicate + verification check is done in txPool
   }
+
   addTransactions(_transactions) {
     //add unique verified transactions to the txPool
     this.signature = null;
     return this.txPool.addTransactions(_transactions); //transaction instance + duplicate + verification check is done in txPool
   }
+
   addAWitness(txId, witness) {
+    //witness is signatureClass instance
+    //witness have
+    // citizen: as witness of transaction (not whole witness list just a transaction)
+    // and a sginature which signature of witness signing the transaction ID
+    if (!txId || !witness) {
+      throw new Error(
+        "Transaction ID and witness are required to add a witness"
+      );
+    }
+    if (!(witness instanceof signatureClass)) {
+      witness = new signatureClass(
+        witness.signatureOfTransaction,
+        witness.witnessPublicKey
+      );
+    }
     //witness is map
     if (!this.witnessesOfEachTransactions.has(txId)) {
       this.witnessesOfEachTransactions.set(txId, []);
     }
     const witnesses = this.witnessesOfEachTransactions.get(txId);
-    console.log("\n\n\n\nAdding witness:", witness);
-    if (witnesses.includes(witness)) {
-      // throw new Error("Verifier already exists for this transaction");
-      console.warn("Witness already exists for this transaction");
-      return false; // Skip if the witness already exists
+    if (witnesses.some((w) => w.equals(witness))) {
+      //throw new Error("Witness already exists for this transaction");
+      console.warn("Witness already exists for this transaction:", witness);
+      // Skip adding the witness if it already exists
+      return false;
     }
     witnesses.push(witness);
     this.witnessesOfEachTransactions.set(txId, witnesses);
     this.signature = null;
     return true; // Witness added successfully
   }
+
   addWitnesses(txId, _witnesses) {
     if (!Array.isArray(_witnesses)) {
       throw new Error("Witnesses must be an array");
@@ -172,6 +180,27 @@ export class WitnessListOfTxPool {
       witnesses.push(witness);
     }
     this.signature = null;
+  }
+
+  getAllTransactions() {
+    return this.txPool.getAllTransactions(); // Return the transactions in the pool
+  }
+
+  getTransactionsWithThresholdWitness() {
+    // Return transactions that have at least THRESHOLD_WITNESSES witnesses
+    const transactionsWithThresholdWitness = [];
+    for (const [
+      txId,
+      witnesses,
+    ] of this.witnessesOfEachTransactions.entries()) {
+      if (witnesses.length >= THRESHOLD_WITNESSES) {
+        const transaction = this.txPool.getTransactionById(txId);
+        if (transaction) {
+          transactionsWithThresholdWitness.push(transaction);
+        }
+      }
+    }
+    return transactionsWithThresholdWitness;
   }
 }
 
@@ -332,4 +361,26 @@ export function addWitnessesToMyWitnessList(
   for (const [txId, witnesses] of witnessMap.entries()) {
     myWitnessList.addAWitness(txId, approverCitizen); // add approver citizen as a witness
   }
+}
+
+export function makeDataToSign(
+  approverCitizen,
+  txPool,
+  witnessesOfEachTransactions
+) {
+  if (!approverCitizen || !txPool || !witnessesOfEachTransactions) {
+    throw new Error("All parameters are required to create data to sign");
+  }
+  const txPoolData = txPool.transactions.map((tx) => tx.toString());
+  if (txPoolData.length === 0) {
+    throw new Error("No transactions to sign in the witness list");
+  }
+  // Create a string representation of the transactions for signing
+  const transactionsString = txPoolData.join(",");
+  const witnessesString = Array.from(witnessesOfEachTransactions.entries())
+    .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
+    .join(";");
+  const data =
+    approverCitizen + ":" + transactionsString + ":" + witnessesString;
+  return data;
 }

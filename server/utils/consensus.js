@@ -16,7 +16,8 @@ async function fetchPeerChains(myPort) {
   for (const port of peerPorts) {
     if (port === myPort) continue;
     try {
-      const res = await axios.get(`http://localhost:${port}/api/blocks`); //issey ip address karna ..naaki localhost
+      const res = await axios.get(`http://localhost:${port}/api/blocks`);
+      //issey ip address karna ..naaki localhost
       chains.push(res.data);
     } catch {
       console.warn(`⚠️ Peer ${port} unreachable`);

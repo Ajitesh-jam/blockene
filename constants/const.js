@@ -1,6 +1,7 @@
 export const NO_OF_TRANSACTIONS_IN_BLOCK = 2;
 export const FIRST_BLOCK_HASH = "0".repeat(64);
 export const THRESHOLD_CITIZENS = 2;
+export const THRESHOLD_WITNESSES = 2;
 export const THRESHOLD_POLITICIANS = 2;
 export const THRESHOLD_CONSENSUS_FOR_BLOCK_FINALITY = 2;
 

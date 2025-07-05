@@ -6,30 +6,7 @@ import { THRESHOLD_CONSENSUS_FOR_BLOCK_FINALITY } from "../../constants/const.js
 import { VRFVerify } from "../../blockchain/utils/crypto.js";
 import { verifySignature } from "../../blockchain/utils/crypto.js";
 import { makeBlockFromTransactions } from "../../blockchain/core/blockMethods.js";
-export class signatureClass {
-  signature; //signature is a string
-  citizen; //citizen is a string
-  constructor(signature, citizen) {
-    if (typeof signature !== "string" || typeof citizen !== "string") {
-      // throw new Error("Signature and citizen must be strings");
-      console.log("Signature and citizen ", signature, citizen);
-    }
-    this.signature = signature;
-    this.citizen = citizen; //string
-  }
-  getSignature() {
-    return this.signature;
-  }
-  getCitizen() {
-    return this.citizen;
-  }
-  toString() {
-    return JSON.stringify({
-      signature: this.signature,
-      citizen: this.citizen,
-    });
-  }
-}
+import { signatureClass } from "../../blockchain/utils/signatureClass.js";
 
 export class proposalClass {
   VRFValue; // VRFValue is a string
@@ -129,13 +106,11 @@ export class NewBlockProposal {
     this.GotVRFValues.push(VRFValue); // add VRFValue to the list of used VRFValues
     //better to add in sorted order but for now just push it
     this.proposals.push(proposal);
-    console.log("Proposal added:", proposal);
     return proposal;
   }
 
   addSignatureToProposal(block, approverCitizen, signature) {
     //if block is not instance of Block class make it an instance of Block class
-    console.log("khuch kar");
     if (!(block instanceof Block)) {
       block = makeBlockFromTransactions(
         block.header.prevHash,
@@ -143,24 +118,14 @@ export class NewBlockProposal {
         block.data.transactions
       );
       block.verify();
-      console.log("siging :\n\n", block.getBlock(), "\n\nby ", approverCitizen);
       if (!verifySignature(approverCitizen, block.getBlock(), signature)) {
         console.log("Signature verification failed for block:", block);
         throw new Error("signature verification failed");
       }
     }
-    console.log(
-      "Adding signature to proposal for block:",
-      block,
-      " by citizen:",
-      approverCitizen,
-      " with signature:",
-      signature
-    );
     // Find the proposal with the matching block hash
     const proposal = this.getProposalByBlockHash(block.hash);
     if (!proposal) {
-      console.log("No proposal found for the given block hash:", block.hash);
       return null; // No proposal found for the given block hash
     }
     // Check if the signature already exists for the proposal
@@ -168,18 +133,11 @@ export class NewBlockProposal {
       .getSignatures()
       .find((sig) => sig.getCitizen() === approverCitizen);
     if (existingSignature) {
-      console.log("Signature already exists for the citizen:", approverCitizen);
       return null; // Signature already exists for the citizen
     }
     // Create a new signature instance and add it to the proposal
     const newSignature = new signatureClass(signature, approverCitizen);
     proposal.addSignature(newSignature);
-    console.log(
-      "Signature added to proposal:",
-      proposal,
-      " for citizen:",
-      approverCitizen
-    );
     return proposal; // Return the updated proposal
   }
 
@@ -210,8 +168,6 @@ export class NewBlockProposal {
   }
 
   clearProposals() {
-    //delete all proposals and reset GotVRFValues
-    console.log("Clearing all proposals and VRF values.");
     delete this.proposals;
     delete this.GotVRFValues;
 
