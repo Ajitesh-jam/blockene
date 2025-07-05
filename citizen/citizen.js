@@ -47,32 +47,83 @@ const Initialdata = {
   txPool: {
     transactions: [
       {
-        id: "tx_1",
+        id: "confirmed_tx_1",
         sender: "ajit",
-        receiver: "someone_else",
-        amount: 1000,
-        timestamp: "2025-06-21T21:28:30.065Z",
+        receiver: "someone",
+        amount: 200,
+        timestamp: "2025-07-05T22:18:29.792Z",
         signature:
-          "9a704f39a59b118928d426d6381155487b850ad3a308b33399d7b5484706dca1",
+          "67a93968e168cf3d33f7cdee6196cc43ea3b326c2b7e96c2fb7385edbcf0cb00",
       },
       {
-        id: "tx_2",
+        id: "confirmed_tx_2",
         sender: "ajit",
         receiver: "someone_else",
-        amount: 1000,
-        timestamp: "2025-06-21T21:28:33.530Z",
+        amount: 100,
+        timestamp: "2025-07-05T22:18:43.418Z",
         signature:
-          "d5c4cc172bd78f9e6a551194a38de71b28aa87ef183c965afe661950f0de6704",
+          "3bda6904e3e729d279aaae7872a13c647bd020d8d8b4bda85aba6452f1349ace",
+      },
+      {
+        id: "NOT_confirmed_tx_2",
+        sender: "ajit",
+        receiver: "someone",
+        amount: 100,
+        timestamp: "2025-07-05T22:19:10.039Z",
+        signature:
+          "3a24ddefa48ab2557a6482be3509737d32820943ee30c072a53625ae21e262d5",
       },
     ],
   },
   witnessesOfEachTransactions: {
-    '5525:{"id":"tx_1","sender":"aji","receiver":"someone","amount":100,"timestamp":"2025-06-21T14:58:50.721Z","signature":"61739f77d4e916defb420a9bdc8ec3cfbd10d45a596d3c7c1e3350dec08f5232"}:':
-      [4701, 4702, 4703],
-    '5520:{"id":"tx_1","sender":"aji","receiver":"someone","amount":100,"timestamp":"2025-06-21T14:58:50.721Z","signature":"61739f77d4e916defb420a9bdc8ec3cfbd10d45a596d3c7c1e3350dec08f5232"}:':
-      [4703, 4704],
+    "confirmed_tx_1:ajit:someone:200": [
+      {
+        signature:
+          "ded16b0b767325a7ba270e09ef005c4b2563cb697450c95c80b1421452dea348",
+        citizen: 5507,
+      },
+      {
+        signature:
+          "9009207e265cca00bab5c2eafa95921a1af001ab2a0f3ec4006802264bbedfe0",
+        citizen: 5500,
+      },
+      {
+        signature:
+          "8610100ccd296a565c278c568ee788f4c0ce337bbadd910471ef80f09cd9fa27",
+        citizen: 5501,
+      },
+      {
+        signature:
+          "553aa19b6cedd16433464635dcde930d0654d20cc07b3c120a56059aadfa3d35",
+        citizen: 5504,
+      },
+    ],
+    "confirmed_tx_2:ajit:someone_else:100": [
+      {
+        signature:
+          "88ed9d4b590dcc0f6272933a25ee90724fa9a44b9464331fd71d2d45c5fc3f39",
+        citizen: 5504,
+      },
+      {
+        signature:
+          "7a02a2ae8fdce31d057bbf35782531d58140be3a6c8dc92058d2c7dd5f7892cb",
+        citizen: 5505,
+      },
+      {
+        signature:
+          "3fe6cd8ac8b23268b71fd4af0a52c3c13d821a6ab53242ef782ca565918790ab",
+        citizen: 5500,
+      },
+    ],
+    "NOT_confirmed_tx_2:ajit:someone:100": [
+      {
+        signature:
+          "5663f239b4eab45b239bbb01c96acd209369b13a28d1a792391ac30825e514c1",
+        citizen: 5500,
+      },
+    ],
   },
-  signature: "c3577ebaa99e7c7c944f0fd7e32caae7216c8a6f2df3dc579c142161ccc9c89e",
+  signature: "dc92f1bb0dd02808bfc87140f6f8ffe0867f91d6e808c39b4e4249ca7f5022e0",
 };
 // Create witness list instance
 let myWitnessList = new WitnessListOfTxPool(PORT);
@@ -85,28 +136,51 @@ addWitnessListToMyWitnessList(
   Initialdata.witnessesOfEachTransactions,
   Initialdata.signature
 );
-myWitnessList.approverCitizen = Number(PORT); // Set the approver citizen to the current port
+myWitnessList.approverCitizen = PORT; // Set the approver citizen to the current port
 myWitnessList.signature = null;
 
-// function proposeMsgToPolitician(){}
+// function proposeMsgToPolitician(){} TODO
 
-app.get("/getWitnessList", async (req, res) => {
+//transactions
+app.post("/createTransaction", (req, res) => {
   try {
-    const responses = await Promise.all(
-      politicianIpPorts.map((ipPort) =>
-        axios.get(`http://${ipPort}/witnessList`)
-      )
+    const { tx_id, senderPvtKey, receiver, amount } = req.body;
+    if (!senderPvtKey || !receiver || !amount) {
+      return res.status(400).send("Invalid transaction data");
+    }
+    const keypair = new Key(senderPvtKey, senderPvtKey);
+    const senderPublicKey = keypair.getPubKey();
+    const txId =
+      tx_id.toString() +
+      ":" +
+      senderPublicKey.toString() +
+      ":" +
+      receiver.toString() +
+      ":" +
+      amount;
+
+    // Create a new transaction
+    const transaction = new Transaction(
+      tx_id, // Unique ID for the transaction
+      senderPublicKey,
+      receiver,
+      amount,
+      signMsg(senderPvtKey, txId) // Sign the transaction with the sender's private key
     );
-    const witnessLists = responses.map((response) => response.data);
-    // // Check if all witness lists are the same
-    // if (new Set(witnessLists).size !== 1) {
-    //   return res.status(500).send("Witness lists do not match");
-    // }
-    witnessList = witnessLists[0];
-    res.json(witnessList);
+
+    const status = myWitnessList.txPool.addATransaction(transaction);
+    if (!status) {
+      return res.status(400).send("Transaction already exists in the pool");
+    }
+
+    // Verify the transaction
+    if (!transaction.verifyTransaction()) {
+      return res.status(400).send("Transaction verification failed");
+    }
+    res.status(201).send("Transaction created successfully");
   } catch (error) {
-    console.error("Error fetching witness list:", error);
-    res.status(500).send("Error fetching witness list");
+    console.error("Error creating transaction:", error);
+    res.status(500).send("Error creating transaction");
   }
 });
 
@@ -125,6 +199,15 @@ app.post("/getAllTransactions", async (req, res) => {
   }
 });
 
+// My witness List endpoints
+app.get("/getMyWitnessList", (req, res) => {
+  if (myWitnessList) {
+    res.json(myWitnessList.getWitnessList());
+  } else {
+    res.status(404).send("Witness list not found");
+  }
+});
+
 //endpoint for my tx_pool
 app.get("/getMyTxPool", (req, res) => {
   if (myWitnessList) {
@@ -134,12 +217,23 @@ app.get("/getMyTxPool", (req, res) => {
   }
 });
 
-// Endpoint to get the witness list of the current server
-app.get("/getMyWitnessList", (req, res) => {
-  if (myWitnessList) {
-    res.json(myWitnessList.getWitnessList());
-  } else {
-    res.status(404).send("Witness list not found");
+app.get("/getWitnessListFromPolitician", async (req, res) => {
+  try {
+    const responses = await Promise.all(
+      politicianIpPorts.map((ipPort) =>
+        axios.get(`http://${ipPort}/api/getAllWitnessList`)
+      )
+    );
+    const witnessLists = responses.map((response) => response.data);
+    // // Check if all witness lists are the same
+    // if (new Set(witnessLists).size !== 1) {
+    //   return res.status(500).send("Witness lists do not match");
+    // }
+    witnessList = witnessLists[0];
+    res.json(witnessList);
+  } catch (error) {
+    console.error("Error fetching witness list:", error);
+    res.status(500).send("Error fetching witness list");
   }
 });
 
@@ -158,23 +252,52 @@ app.post("/signWitnessList", (req, res) => {
 
 app.post("/addWitnessToWitnessList", (req, res) => {
   try {
-    const { txId, witness } = req.body;
-    if (!txId || !witness) {
+    const {
+      tx_id,
+      tx_sender,
+      tx_receiver,
+      tx_amount,
+      tx_signature,
+      tx_timestamp,
+      witness_pvtKey,
+    } = req.body;
+    if (
+      !tx_id ||
+      !tx_sender ||
+      !tx_receiver ||
+      !tx_amount ||
+      !tx_signature ||
+      !witness_pvtKey
+    ) {
       return res.status(400).send("Invalid witness data");
     }
+    // Create a new transaction instance
+    const transaction = new Transaction(
+      tx_id,
+      tx_sender,
+      tx_receiver,
+      tx_amount,
+      tx_signature,
+      tx_timestamp
+    );
+    transaction.verifyTransaction(); // Verify the transaction
+    const transactionID = transaction.getTransactionId(); // Get the transaction ID
 
-    // Add the witness to the witness list
-    const status = myWitnessList.addAWitness(txId, witness);
+    const keypair = new Key(witness_pvtKey, witness_pvtKey);
+
+    const status = myWitnessList.addAWitness(transactionID, {
+      signature: signMsg(witness_pvtKey, transactionID),
+      citizen: keypair.getPubKey(),
+    });
     if (!status) {
       return res
         .status(400)
         .send("Witness already exists for this transaction");
     }
-
     res.status(200).send("Witness added successfully", myWitnessList);
   } catch (error) {
     console.error("Error adding witness:", error);
-    res.status(500).send("Error adding witness");
+    res.status(500).send("Error adding witness ; ", error);
   }
 });
 
@@ -185,7 +308,7 @@ app.post("/addWitnessesFromOtherWitnessListToMyWitnessList", (req, res) => {
     if (
       !approverCitizen ||
       !txPool ||
-      !witnessesOfEachTransactions ||
+      !witnessesOfEachTransactions || //should a signature class object
       !signature
     ) {
       return res.status(400).send("Invalid witness list data");
@@ -195,7 +318,7 @@ app.post("/addWitnessesFromOtherWitnessListToMyWitnessList", (req, res) => {
       myWitnessList,
       approverCitizen,
       txPool,
-      witnessesOfEachTransactions,
+      witnessesOfEachTransactions, //signature class instanaces
       signature
     );
     res.status(200).send("Witness list added successfully");
@@ -264,7 +387,7 @@ app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
           formattedWitnessList
         );
         const response = await axios.post(
-          `http://${ipPort}/addWitnessListToPool`,
+          `http://${ipPort}/api/addWitnessListToPool`,
           {
             witnessList: formattedWitnessList,
           }
@@ -300,49 +423,6 @@ app.post("/shareMyWitnessListWithPolitician", async (req, res) => {
   } catch (error) {
     console.error("Error sharing witness list with politicians:", error);
     res.status(500).send("Error sharing witness list with politicians");
-  }
-});
-
-app.post("/createTransaction", (req, res) => {
-  try {
-    const { tx_id, senderPvtKey, receiver, amount } = req.body;
-    if (!senderPublicKey || !senderPvtKey || !receiver || !amount) {
-      return res.status(400).send("Invalid transaction data");
-    }
-    const txId =
-      tx_id.toString() +
-      ":" +
-      senderPublicKey.toString() +
-      ":" +
-      receiver.toString() +
-      ":" +
-      amount;
-
-    const keypair = new Key(senderPvtKey, senderPvtKey);
-    const senderPublicKey = keypair.getPubKey();
-
-    // Create a new transaction
-    const transaction = new Transaction(
-      tx_id, // Unique ID for the transaction
-      senderPublicKey,
-      receiver,
-      amount,
-      signMsg(senderPvtKey, txId) // Sign the transaction with the sender's private key
-    );
-
-    const status = myWitnessList.txPool.addATransaction(transaction);
-    if (!status) {
-      return res.status(400).send("Transaction already exists in the pool");
-    }
-
-    // Verify the transaction
-    if (!transaction.verifyTransaction()) {
-      return res.status(400).send("Transaction verification failed");
-    }
-    res.status(201).send("Transaction created successfully");
-  } catch (error) {
-    console.error("Error creating transaction:", error);
-    res.status(500).send("Error creating transaction");
   }
 });
 

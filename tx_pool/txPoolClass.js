@@ -45,7 +45,7 @@ export class TxPoolClass {
         this.transactions.find(
           (t) => t.getTransactionId() === tx.getTransactionId()
         ) ||
-        tx.verifyTransaction()
+        tx.verfiyTransaction()
       ) {
         continue; // Skip if the transaction already exists in the pool
       }
@@ -62,7 +62,9 @@ export class TxPoolClass {
     return this.transactions.length;
   }
   getTransactionById(_id) {
-    return this.transactions.find((transaction) => transaction.id === _id);
+    return this.transactions.find(
+      (transaction) => transaction.getTransactionId() === _id
+    );
   }
   toString() {
     return JSON.stringify(this.transactions);

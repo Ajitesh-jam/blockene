@@ -1,12 +1,9 @@
-import { signMsg, verifySignature } from "./crypto";
+import { signMsg, verifySignature } from "./crypto.js";
 
 export class signatureClass {
   signature; //signature is a string
   citizen; //citizen is a string
   constructor(signature, citizen) {
-    if (typeof signature !== "string" || typeof citizen !== "string") {
-      // throw new Error("Signature and citizen must be strings");
-    }
     this.signature = signature;
     this.citizen = citizen; //public key of the citizen
   }
@@ -38,11 +35,12 @@ export class signatureClass {
   }
   verifySignature(msg) {
     if (!msg || !this.signature) {
+      console.log(" msg :", msg, "signa :", this.signature);
       throw new Error(
         "Public key, message, and signature are required for verification."
       );
     }
-    return verifySignature(this.citizen, transactionID, this.signature);
+    return verifySignature(this.citizen, msg, this.signature);
   }
   equals(otherSignature) {
     if (!(otherSignature instanceof signatureClass)) {

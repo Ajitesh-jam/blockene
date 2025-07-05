@@ -132,6 +132,7 @@ export class WitnessListOfTxPool {
   }
 
   addAWitness(txId, witness) {
+    // Add a witness to a specific transaction
     //witness is signatureClass instance
     //witness have
     // citizen: as witness of transaction (not whole witness list just a transaction)
@@ -141,11 +142,26 @@ export class WitnessListOfTxPool {
         "Transaction ID and witness are required to add a witness"
       );
     }
+    // Check if witness is an instance of
+    const signature = witness.signature; //signature of the witness
+    const citizen = witness.citizen; //public key of the witness
     if (!(witness instanceof signatureClass)) {
       witness = new signatureClass(
-        witness.signatureOfTransaction,
-        witness.witnessPublicKey
+        signature,
+        citizen //public key of the witness
       );
+    }
+    //check if witness aggress the transaction ID
+    if (!witness.verifySignature(txId)) {
+      // throw new Error(
+      //   "Witness signature does not match the transaction ID. Witness cannot be added."
+      // );
+      console.warn(
+        "Witness signature is not valid for the transaction ID. Witness cannot be added:",
+        witness
+      );
+      // Skip adding the witness if the signature does not match
+      return false; // Witness not added due to signature mismatch
     }
     //witness is map
     if (!this.witnessesOfEachTransactions.has(txId)) {
@@ -168,16 +184,8 @@ export class WitnessListOfTxPool {
     if (!Array.isArray(_witnesses)) {
       throw new Error("Witnesses must be an array");
     }
-    if (!this.witnessesOfEachTransactions.has(txId)) {
-      this.witnessesOfEachTransactions.set(txId, []);
-    }
-    const witnesses = this.witnessesOfEachTransactions.get(txId);
     for (const witness of _witnesses) {
-      if (witnesses.includes(witness)) {
-        //throw new Error("Witness already exists for this transaction");
-        continue; // Skip if the witness already exists
-      }
-      witnesses.push(witness);
+      this.addAWitness(txId, witness);
     }
     this.signature = null;
   }
@@ -193,8 +201,17 @@ export class WitnessListOfTxPool {
       txId,
       witnesses,
     ] of this.witnessesOfEachTransactions.entries()) {
+      console.log(
+        `Transaction ID: ${txId}, Witnesses: ${
+          witnesses.length
+        } (${witnesses.join(", ")})`
+      );
       if (witnesses.length >= THRESHOLD_WITNESSES) {
         const transaction = this.txPool.getTransactionById(txId);
+        console.log(
+          `Transaction ID: ${txId} has ${witnesses.length} witnesses, which meets the threshold of ${THRESHOLD_WITNESSES}.`
+        );
+        console.log("####Transaction:", transaction);
         if (transaction) {
           transactionsWithThresholdWitness.push(transaction);
         }
@@ -204,7 +221,7 @@ export class WitnessListOfTxPool {
   }
 }
 
-export function verifyWitnessList(
+export function verifyWitnessListSendByApprover(
   approverCitizen,
   txPool,
   witnessesOfEachTransactions,
@@ -291,12 +308,20 @@ export function addWitnessListToMyWitnessList(
     txPoolData.addATransaction(transaction);
     myWitnessList.addATransaction(transaction);
   }
-  if (!verifyWitnessList(approverCitizen, txPoolData, witnessMap, signature)) {
+  if (
+    !verifyWitnessListSendByApprover(
+      approverCitizen,
+      txPoolData,
+      witnessMap,
+      signature
+    )
+  ) {
     throw new Error("Witness list verification failed");
   }
 
   for (const [txId, witnesses] of witnessMap.entries()) {
-    myWitnessList.witnessesOfEachTransactions.set(txId, witnesses); // Add the witnesses for each transaction
+    //make sure witnesses is an array of signatureClass instances
+    myWitnessList.addWitnesses(txId, witnesses); // add witnesses to the transaction in the witness list
   }
   myWitnessList.approverCitizen = approverCitizen; // Store the approver's public key
   myWitnessList.signature = signature; // Store the signature in the witness list
@@ -306,15 +331,9 @@ export function addWitnessesToMyWitnessList(
   myWitnessList,
   approverCitizen,
   txPool,
-  witnessesOfEachTransactions, //mapp of transactionId to array of witnesses
+  witnessesOfEachTransactions,
   signature
 ) {
-  // console.log(
-  //   `Adding witnesses to my witness list ${approverCitizen}, txPool: ${txPool}, witnessesOfEachTransactions: ${JSON.stringify(
-  //     witnessesOfEachTransactions
-  //   )}, signature: ${signature}`
-  // );
-  //add witness list to my witness list
   if (!myWitnessList || !(myWitnessList instanceof WitnessListOfTxPool)) {
     throw new Error("Witness list missing or invalid");
   }
@@ -353,7 +372,14 @@ export function addWitnessesToMyWitnessList(
     txPoolData.addATransaction(transaction);
     myWitnessList.addATransaction(transaction);
   }
-  if (!verifyWitnessList(approverCitizen, txPoolData, witnessMap, signature)) {
+  if (
+    !verifyWitnessListSendByApprover(
+      approverCitizen,
+      txPoolData,
+      witnessMap,
+      signature
+    )
+  ) {
     throw new Error("Witness list verification failed");
   }
 
@@ -377,9 +403,16 @@ export function makeDataToSign(
   }
   // Create a string representation of the transactions for signing
   const transactionsString = txPoolData.join(",");
-  const witnessesString = Array.from(witnessesOfEachTransactions.entries())
-    .map(([txId, witnesses]) => `${txId}:${witnesses.join(",")}`)
-    .join(";");
+  const witnessesString = //make array of all citizen public key and signature of witnesses
+    Array.from(witnessesOfEachTransactions.entries())
+      .map(([txId, witnesses]) => {
+        return `${txId}:${witnesses
+          .map((w) => {
+            return w.citizen + w.signature;
+          })
+          .join(",")}`;
+      })
+      .join(";");
   const data =
     approverCitizen + ":" + transactionsString + ":" + witnessesString;
   return data;
